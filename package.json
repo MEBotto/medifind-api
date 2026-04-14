@@ -10,6 +10,10 @@
     "migration:generate": "npm run typeorm migration:generate -- -d src/data-source.ts",
     "migration:run": "npm run typeorm migration:run -- -d src/data-source.ts",
     "migration:revert": "npm run typeorm migration:revert -- -d src/data-source.ts",
+    "db:ensure": "ts-node -r tsconfig-paths/register src/scripts/ensure-db.ts",
+    "db:wipe": "ts-node -r tsconfig-paths/register src/scripts/wipe-db.ts",
+    "db:wipe:soft": "ts-node -r tsconfig-paths/register src/scripts/wipe-db.ts --soft",
+    "db:wipe:force": "ts-node -r tsconfig-paths/register src/scripts/wipe-db.ts --force",
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
@@ -42,6 +46,7 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
+    "@types/pg": "^8.20.0",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
