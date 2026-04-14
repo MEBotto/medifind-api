@@ -2,10 +2,15 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
 } from 'typeorm';
-
+import { Role } from '../../roles/models/Role';
+import { Person } from '../../customers/models/Person';
+import { Pharmacy } from '../../pharmacies/models/Pharmacy';
+import { FavouritePharmacy } from './FavouritePharmacy';
+import { Customer } from '../../customers/models/Customer';
 
 @Entity('users')
 export class User {
@@ -15,21 +20,27 @@ export class User {
   @Column({ unique: true })
   username: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   email: string;
 
   @Column()
   password: string;
 
-  @Column()
-  firstName: string;
+  @ManyToOne(() => Role, role => role.users)
+  @JoinColumn({ name: 'idRole' })
+  role: Role;
 
-  @Column()
-  lastName: string;
+  @ManyToOne(() => Person, person => person.users)
+  @JoinColumn({ name: 'idPerson' })
+  person: Person;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @ManyToOne(() => Pharmacy, pharmacy => pharmacy.users)
+  @JoinColumn({ name: 'idPharmacy' })
+  pharmacy: Pharmacy;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @OneToMany(() => FavouritePharmacy, fp => fp.user)
+  favouritePharmacies: FavouritePharmacy[];
+
+  @OneToMany(() => Customer, customer => customer.user)
+  customers: Customer[];
 }

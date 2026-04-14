@@ -3,6 +3,7 @@ import UsersController from '../controllers/UsersController';
 import UsersRepository from '../repositories/UsersRepository';
 import UsersService from '../services/UsersService';
 import { validate } from '@/middleware/validation.middleware';
+import { authenticateJWT, requireRole } from '@/middleware/auth.middleware';
 import { CreateUserSchema, UpdateUserSchema } from '../dtos/user.dto';
 
 const router = Router();
@@ -12,8 +13,8 @@ const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const usersController = new UsersController(usersService);
 
-// Rutas de usuarios
-router.post('/', validate(CreateUserSchema), usersController.createUser);
+// Rutas de usuarios (Creating a new user manually requires Admin role)
+router.post('/', authenticateJWT, requireRole('Admin'), validate(CreateUserSchema), usersController.createUser);
 
 router.get('/:id', usersController.getUserById);
 
