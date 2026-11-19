@@ -13,13 +13,13 @@ const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const usersController = new UsersController(usersService);
 
-// Rutas de usuarios (Creating a new user manually requires Admin role)
-router.post('/', authenticateJWT, requireRole('Admin'), validate(CreateUserSchema), usersController.createUser);
+// Las operaciones administrativas sobre usuarios requieren autenticación y rol Admin.
+// El acceso al perfil propio se implementará mediante endpoints específicos (/me).
+router.use(authenticateJWT, requireRole('Admin'));
 
+router.post('/', validate(CreateUserSchema), usersController.createUser);
 router.get('/:id', usersController.getUserById);
-
 router.put('/:id', validate(UpdateUserSchema), usersController.updateUser);
-
 router.delete('/:id', usersController.deleteUser);
 
 export default router;
