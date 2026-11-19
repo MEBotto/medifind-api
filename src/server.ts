@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/utils/jwt-secret';
 import 'dotenv/config';
 import 'reflect-metadata';
 import app from './app';
@@ -20,6 +21,7 @@ let server: Server;
 // Inicialización de la base de datos y servidor
 const startServer = async () => {
   try {
+    getJwtSecret();
     await initializeDatabase();
     logger.info('Base de datos conectada exitosamente');
 

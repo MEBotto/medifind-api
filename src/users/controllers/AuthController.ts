@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/utils/jwt-secret';
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import UsersService from '../services/UsersService';
@@ -7,8 +8,7 @@ import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import { sendSuccess, sendCreated, sendError } from '@/utils/api.utils';
 
-// We fall back to a default secret if not provided in .env
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-medifind-key';
+
 
 class AuthController {
   constructor(private readonly usersService: UsersService) {}
@@ -28,7 +28,7 @@ class AuthController {
         role: user.role?.name || 'User' // Default fallback
       };
 
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '1d' });
       
       sendCreated(res, { user, token }, 'Usuario registrado exitosamente');
     } catch (error) {
@@ -55,7 +55,7 @@ class AuthController {
         role: user.role?.name || 'User' // We assume a populated role, else basic permission
       };
 
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+      const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '1d' });
 
       sendSuccess(res, { user, token }, 'Login exitoso');
     } catch (error) {
