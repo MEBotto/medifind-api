@@ -1,8 +1,9 @@
+import { getJwtSecret } from '@/utils/jwt-secret';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './error.middleware';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-medifind-key';
+
 
 export interface AuthRequest extends Request {
   user?: {
@@ -18,7 +19,7 @@ export const authenticateJWT = (req: AuthRequest, res: Response, next: NextFunct
   if (authHeader) {
     const token = authHeader.split(' ')[1];
 
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, getJwtSecret(), (err, decoded) => {
       if (err) {
         return next(new AppError(403, 'Token inválido o expirado'));
       }
