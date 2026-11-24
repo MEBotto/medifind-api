@@ -23,7 +23,6 @@ const startServer = async () => {
   try {
     getJwtSecret();
     await initializeDatabase();
-    logger.info('Base de datos conectada exitosamente');
 
     server = app.listen(PORT, () => {
       logger.info(`Servidor corriendo en el puerto ${PORT}`);
