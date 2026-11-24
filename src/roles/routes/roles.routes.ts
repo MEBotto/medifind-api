@@ -13,7 +13,7 @@ const service = new RolesService(repository);
 const controller = new RolesController(service);
 
 // Role administration is restricted to platform administrators.
-router.use(authenticateJWT, requireRole('Admin'));
+router.use(authenticateJWT, requireRole('ADMIN'));
 
 router.post('/', validate(CreateRoleSchema), controller.create);
 router.get('/', controller.getAll);
