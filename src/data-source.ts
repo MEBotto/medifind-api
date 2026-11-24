@@ -31,7 +31,8 @@ const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   entities: [AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
   migrations: ['src/migrations/*.ts'],
-  synchronize: true,
+  // Never auto-modify a real database schema. Tests use an isolated disposable DB.
+  synchronize: process.env.NODE_ENV === 'test',
   logging: false,
 });
 
