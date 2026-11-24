@@ -1,87 +1,44 @@
 import { Request, Response } from 'express';
 import ProductsService from '../services/ProductsService';
 import { CreateProductDTO, UpdateProductDTO } from '../dtos/product.dto';
+import { AuthRequest } from '@/middleware/auth.middleware';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import { sendSuccess, sendCreated, sendError } from '@/utils/api.utils';
 
 class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
-
-  create = async (req: Request, res: Response): Promise<void> => {
+  private fail(res: Response, error: unknown): void {
+    if (error instanceof AppError) { sendError(res, error.message, error.statusCode); return; }
+    logger.error('Product operation failed:', error);
+    sendError(res, 'Internal server error', 500);
+  }
+  create = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const data = req.body as CreateProductDTO;
-      const entity = await this.productsService.createProduct(data);
-      sendCreated(res, entity, 'Product creado exitosamente');
-    } catch (error) {
-      if (error instanceof AppError) {
-        sendError(res, error.message, error.statusCode, error.validationErrors);
-        return;
-      }
-      logger.error('Error en create Product:', error);
-      sendError(res, 'Error interno del servidor');
-    }
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      sendCreated(res, await this.productsService.createProduct(req.body as CreateProductDTO, req.user), 'Product created');
+    } catch (error) { this.fail(res, error); }
   };
-
   getById = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const entity = await this.productsService.getProductById(id);
-      sendSuccess(res, entity);
-    } catch (error) {
-      if (error instanceof AppError) {
-        sendError(res, error.message, error.statusCode);
-        return;
-      }
-      logger.error('Error en getById Product:', error);
-      sendError(res, 'Error interno del servidor');
-    }
+    try { sendSuccess(res, await this.productsService.getProductById(req.params.id)); }
+    catch (error) { this.fail(res, error); }
   };
-
-  getAll = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const entities = await this.productsService.getAllProducts();
-      sendSuccess(res, entities);
-    } catch (error) {
-      if (error instanceof AppError) {
-        sendError(res, error.message, error.statusCode);
-        return;
-      }
-      logger.error('Error en getAll Products:', error);
-      sendError(res, 'Error interno del servidor');
-    }
+  getAll = async (_req: Request, res: Response): Promise<void> => {
+    try { sendSuccess(res, await this.productsService.getAllProducts()); }
+    catch (error) { this.fail(res, error); }
   };
-
-  update = async (req: Request, res: Response): Promise<void> => {
+  update = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
-      const data = req.body as UpdateProductDTO;
-      const entity = await this.productsService.updateProduct(id, data);
-      sendSuccess(res, entity, 'Product actualizado exitosamente');
-    } catch (error) {
-      if (error instanceof AppError) {
-        sendError(res, error.message, error.statusCode);
-        return;
-      }
-      logger.error('Error en update Product:', error);
-      sendError(res, 'Error interno del servidor');
-    }
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      sendSuccess(res, await this.productsService.updateProduct(req.params.id, req.body as UpdateProductDTO, req.user), 'Product updated');
+    } catch (error) { this.fail(res, error); }
   };
-
-  delete = async (req: Request, res: Response): Promise<void> => {
+  delete = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
-      await this.productsService.deleteProduct(id);
-      sendSuccess(res, null, 'Product eliminado exitosamente');
-    } catch (error) {
-      if (error instanceof AppError) {
-        sendError(res, error.message, error.statusCode);
-        return;
-      }
-      logger.error('Error en delete Product:', error);
-      sendError(res, 'Error interno del servidor');
-    }
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      await this.productsService.deleteProduct(req.params.id, req.user);
+      sendSuccess(res, null, 'Product deleted');
+    } catch (error) { this.fail(res, error); }
   };
 }
-
 export default ProductsController;
