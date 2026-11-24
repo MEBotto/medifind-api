@@ -9,7 +9,7 @@ export class Permission {
   @Column({ unique: true, length: 100 })
   code: string;
 
-  @Column({ nullable: true, length: 150 })
+  @Column({ type: 'varchar', nullable: true, length: 150 })
   name: string | null;
 
   @Column({ type: 'text', nullable: true })
