@@ -34,7 +34,7 @@ describe('AuthController', () => {
   });
 
   it('register returns HTTP 201 without a password hash', async () => {
-    const service = { createUser: jest.fn().mockResolvedValue(user) } as unknown as UsersService;
+    const service = { registerCustomer: jest.fn().mockResolvedValue(user) } as unknown as UsersService;
     const controller = new AuthController(service);
     const res = response();
     await controller.register({ body: user } as Request, res);
