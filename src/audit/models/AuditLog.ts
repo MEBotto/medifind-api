@@ -31,7 +31,7 @@ export class AuditLog {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown> | null;
 
-  @Column({ length: 45, nullable: true })
+  @Column({ type: 'varchar', length: 45, nullable: true })
   ipAddress: string | null;
 
   @Column({ type: 'text', nullable: true })
