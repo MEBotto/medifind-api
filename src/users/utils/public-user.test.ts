@@ -21,8 +21,8 @@ describe('toPublicUser', () => {
     expect(JSON.stringify(toPublicUser(user))).not.toContain('private-customer');
   });
 
-  it('uses the actual role name when loaded', () => {
-    const user = { id: '1', username: 'a', email: 'a@b.com', role: { name: 'Admin' } } as User;
-    expect(toPublicUser(user).role).toBe('Admin');
+  it('uses the stable role code when loaded', () => {
+    const user = { id: '1', username: 'a', email: 'a@b.com', role: { code: 'ADMIN', name: 'Administrador' } } as User;
+    expect(toPublicUser(user).role).toBe('ADMIN');
   });
 });
