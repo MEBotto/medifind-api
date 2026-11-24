@@ -19,22 +19,23 @@ export class AppError extends Error {
 
 export const errorHandler = (
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
   _next: NextFunction,
 ): Response => {
-  logger.error(`Error: ${err.message}`);
-
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       status: 'error',
+      code: err.validationErrors ? 'VALIDATION_ERROR' : 'REQUEST_FAILED',
       message: err.message,
       ...(err.validationErrors && { errors: err.validationErrors }),
     });
   }
 
+  logger.error('Unhandled request error:', err);
   return res.status(500).json({
     status: 'error',
-    message: 'Error interno del servidor',
+    code: 'INTERNAL_SERVER_ERROR',
+    message: 'Internal server error',
   });
 };

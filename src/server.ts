@@ -4,17 +4,9 @@ import 'reflect-metadata';
 import app from './app';
 import AppDataSource, { initializeDatabase } from '@/data-source';
 import { logger } from '@/utils/logger';
-import helmet from 'helmet';
-import cors from 'cors';
-import compression from 'compression';
 import { Server } from 'http';
 
 const PORT = process.env.PORT || 3000;
-
-// Configuración de seguridad y optimización
-app.use(helmet());
-app.use(cors());
-app.use(compression());
 
 let server: Server;
 
