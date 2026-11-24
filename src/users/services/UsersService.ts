@@ -4,11 +4,20 @@ import { User } from '../models/User';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import bcrypt from 'bcrypt';
+import AppDataSource from '@/data-source';
+import { Role } from '@/roles/models/Role';
 
 class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
-  async createUser(userData: CreateUserDTO): Promise<User> {
+  /** Public registration never accepts a client-supplied role or pharmacy. */
+  async registerCustomer(userData: CreateUserDTO): Promise<User> {
+    const customerRole = await AppDataSource.getRepository(Role).findOneBy({ code: 'CUSTOMER' });
+    if (!customerRole) throw new AppError(503, 'Customer registration is not configured');
+    return this.createUser(userData, customerRole);
+  }
+
+  async createUser(userData: CreateUserDTO, role?: Role): Promise<User> {
     try {
       const existingUser = await this.usersRepository.findByEmail(userData.email);
       if (existingUser) throw new AppError(409, 'Email is already registered');
@@ -19,6 +28,7 @@ class UsersService {
       const user = await this.usersRepository.create({
         ...userData,
         password: hashedPassword,
+        ...(role ? { role } : {}),
       });
       logger.info('User created successfully');
       return user;
