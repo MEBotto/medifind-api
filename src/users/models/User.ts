@@ -34,9 +34,9 @@ export class User {
   @JoinColumn({ name: 'idPerson' })
   person: Person;
 
-  @ManyToOne(() => Pharmacy, pharmacy => pharmacy.users)
+  @ManyToOne(() => Pharmacy, pharmacy => pharmacy.users, { nullable: true })
   @JoinColumn({ name: 'idPharmacy' })
-  pharmacy: Pharmacy;
+  pharmacy: Pharmacy | null;
 
   @OneToMany(() => FavouritePharmacy, fp => fp.user)
   favouritePharmacies: FavouritePharmacy[];
