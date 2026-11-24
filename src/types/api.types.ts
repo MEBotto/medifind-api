@@ -1,5 +1,6 @@
 export interface ApiResponse<T = unknown> {
   status: 'success' | 'error';
+  code?: string;
   data?: T;
   message?: string;
   meta?: {
@@ -12,9 +13,7 @@ export interface ApiResponse<T = unknown> {
 
 export interface ApiError {
   status: 'error';
+  code?: string;
   message: string;
-  errors?: Array<{
-    path: string;
-    message: string;
-  }>;
-} 
+  errors?: Array<{ path: string; message: string }>;
+}
