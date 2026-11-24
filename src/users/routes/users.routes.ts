@@ -15,7 +15,7 @@ const usersController = new UsersController(usersService);
 
 // Las operaciones administrativas sobre usuarios requieren autenticación y rol Admin.
 // El acceso al perfil propio se implementará mediante endpoints específicos (/me).
-router.use(authenticateJWT, requireRole('Admin'));
+router.use(authenticateJWT, requireRole('ADMIN'));
 
 router.post('/', validate(CreateUserSchema), usersController.createUser);
 router.get('/:id', usersController.getUserById);
