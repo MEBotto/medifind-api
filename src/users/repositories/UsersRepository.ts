@@ -14,7 +14,7 @@ class UsersRepository {
     this.ormRepository = AppDataSource.getRepository(User);
   }
 
-  async create(userData: CreateUserDTO & { role?: Role }): Promise<User> {
+  async create(userData: CreateUserDTO & { role?: Role; pharmacy?: import('@/pharmacies/models/Pharmacy').Pharmacy | null }): Promise<User> {
     try {
       const user = this.ormRepository.create(userData);
       return await this.ormRepository.save(user);
