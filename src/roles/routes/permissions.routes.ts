@@ -13,7 +13,7 @@ const service = new PermissionsService(repository);
 const controller = new PermissionsController(service);
 
 // Permission administration is restricted to platform administrators.
-router.use(authenticateJWT, requireRole('Admin'));
+router.use(authenticateJWT, requireRole('ADMIN'));
 
 router.post('/', validate(CreatePermissionSchema), controller.create);
 router.get('/', controller.getAll);
