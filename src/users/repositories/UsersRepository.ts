@@ -5,6 +5,7 @@ import { CreateUserDTO, UpdateUserDTO } from '../dtos/user.dto';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import bcrypt from 'bcrypt';
+import { Role } from '@/roles/models/Role';
 
 class UsersRepository {
   private ormRepository: Repository<User>;
@@ -13,7 +14,7 @@ class UsersRepository {
     this.ormRepository = AppDataSource.getRepository(User);
   }
 
-  async create(userData: CreateUserDTO): Promise<User> {
+  async create(userData: CreateUserDTO & { role?: Role }): Promise<User> {
     try {
       const user = this.ormRepository.create(userData);
       return await this.ormRepository.save(user);
