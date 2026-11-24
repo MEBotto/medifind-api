@@ -35,7 +35,7 @@ export const authenticateJWT = (req: AuthRequest, _res: Response, next: NextFunc
 export const requireRole = (requiredRole: string) =>
   (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (!req.user) return next(new AppError(401, 'Authentication required'));
-    if (req.user.role !== requiredRole && req.user.role !== 'Admin') {
+    if (req.user.role !== requiredRole && req.user.role !== 'ADMIN') {
       return next(new AppError(403, 'Insufficient permissions'));
     }
     next();
