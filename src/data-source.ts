@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import 'dotenv/config';
+import { logger } from '@/utils/logger';
 
 import { User } from './users/models/User';
 import { Role } from './roles/models/Role';
@@ -30,16 +31,16 @@ const AppDataSource = new DataSource({
   entities: [User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
   migrations: ['src/migrations/*.ts'],
   synchronize: true,
-  logging: true,
+  logging: false,
 });
 
 // Función para inicializar la conexión
 export const initializeDatabase = async () => {
   try {
     await AppDataSource.initialize();
-    console.log('Conexión a la base de datos establecida correctamente');
+    logger.info('Conexión a PostgreSQL establecida correctamente');
   } catch (error) {
-    console.error('Error al conectar con la base de datos:', error);
+    logger.error('Error al conectar con PostgreSQL:', error);
     throw error;
   }
 };
