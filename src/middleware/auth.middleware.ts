@@ -10,7 +10,7 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticateJWT = async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
-  const match = /^Bearer\\s+(\\S+)$/i.exec(req.headers.authorization ?? '');
+  const match = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization ?? '');
   if (!match) { next(new AppError(401, 'Authorization token is missing or malformed')); return; }
   let decoded: jwt.JwtPayload;
   try {
