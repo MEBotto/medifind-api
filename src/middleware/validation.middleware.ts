@@ -6,7 +6,7 @@ import { logger } from '@/utils/logger';
 export const validate =
   (schema: AnyZodObject) => async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await schema.parseAsync(req.body);
+      req.body = await schema.parseAsync(req.body);
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -14,9 +14,8 @@ export const validate =
           path: err.path.join('.'),
           message: err.message,
         }));
-
-        logger.warn('Error de validación:', { errors });
-        next(new AppError(400, 'Error de validación', errors));
+        logger.warn('Request validation failed', { errors });
+        next(new AppError(400, 'Validation failed', errors));
       } else {
         next(error);
       }
