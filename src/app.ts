@@ -5,20 +5,19 @@ import { logger } from './utils/logger';
 
 const app = express();
 
-// Middleware básico
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Middleware de logging
+// Do not log request bodies, query strings, passwords, or bearer tokens.
 app.use((req: Request, res: Response, next: NextFunction) => {
-  logger.info(`${req.method} ${req.url} ${JSON.stringify(req.body)}`);
+  const started = Date.now();
+  res.on('finish', () => {
+    logger.info(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - started}ms`);
+  });
   next();
 });
 
-// Rutas centralizadas
 app.use('/api', router);
-
-// Middleware de manejo de errores
 app.use(errorHandler);
 
 export default app;
