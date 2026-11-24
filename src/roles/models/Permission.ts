@@ -6,11 +6,14 @@ export class Permission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ unique: true, length: 100 })
   code: string;
 
-  @Column({ nullable: true })
-  description: string;
+  @Column({ nullable: true, length: 150 })
+  name: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
 
   @OneToMany(() => RolePermission, rp => rp.permission)
   rolePermissions: RolePermission[];
