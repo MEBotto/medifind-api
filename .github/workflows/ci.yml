@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --runInBand
+
+  authentication-api:
+    name: Authentication API (Newman)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medifind_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d medifind_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      PORT: '3001'
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: medifind_test
+      JWT_SECRET: ci-only-test-secret-not-for-production-2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Verify Postman collection is committed
+        run: test -f tests/postman/MediFind.postman_collection.json
+      - name: Start API
+        run: |
+          npm run dev > /tmp/medifind-api.log 2>&1 &
+          echo $! > /tmp/medifind-api.pid
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 45); do
+            if curl --silent --output /dev/null http://localhost:3001/api/auth/login; then
+              echo "API is ready"
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/medifind-api.pid)" 2>/dev/null; then
+              cat /tmp/medifind-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+          cat /tmp/medifind-api.log
+          exit 1
+      - name: Run Authentication Postman tests
+        run: |
+          npx --yes newman@6.2.3 run tests/postman/MediFind.postman_collection.json \
+            --folder Authentication \
+            --env-var "baseUrl=http://localhost:3001/api" \
+            --env-var "token=" \
+            --env-var "userId="
+      - name: Show API logs on failure
+        if: failure()
+        run: cat /tmp/medifind-api.log || true
