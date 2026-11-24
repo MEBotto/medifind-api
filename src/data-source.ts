@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { logger } from '@/utils/logger';
 
 import { User } from './users/models/User';
+import { AuditLog } from './audit/models/AuditLog';
 import { Role } from './roles/models/Role';
 import { Permission } from './roles/models/Permission';
 import { RolePermission } from './roles/models/RolePermission';
@@ -28,7 +29,7 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
+  entities: [AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
   migrations: ['src/migrations/*.ts'],
   synchronize: true,
   logging: false,
