@@ -6,127 +6,88 @@ import { logger } from '@/utils/logger';
 import bcrypt from 'bcrypt';
 
 class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository
-  ) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
-  /**
-   * Crea un nuevo usuario
-   * @param userData Datos del usuario a crear
-   * @returns Usuario creado
-   */
   async createUser(userData: CreateUserDTO): Promise<User> {
     try {
       const existingUser = await this.usersRepository.findByEmail(userData.email);
-      if (existingUser) {
-        throw new AppError(400, 'El email ya está registrado');
-      }
+      if (existingUser) throw new AppError(409, 'Email is already registered');
+      const existingUsername = await this.usersRepository.findByUsername(userData.username);
+      if (existingUsername) throw new AppError(409, 'Username is already taken');
 
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const user = await this.usersRepository.create({
         ...userData,
         password: hashedPassword,
       });
-
-      logger.info(`Usuario creado: ${user.email}`);
+      logger.info('User created successfully');
       return user;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error('Error al crear usuario:', error);
-      throw new AppError(500, 'Error al crear el usuario');
+      logger.error('Failed to create user:', error);
+      throw new AppError(500, 'Failed to create user');
     }
   }
 
-  /**
-   * Obtiene un usuario por su ID
-   * @param id ID del usuario
-   * @returns Usuario encontrado
-   */
   async getUserById(id: string): Promise<User> {
     try {
       const user = await this.usersRepository.findById(id);
-      if (!user) {
-        throw new AppError(404, 'Usuario no encontrado');
-      }
+      if (!user) throw new AppError(404, 'User not found');
       return user;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error(`Error al obtener usuario ${id}:`, error);
-      throw new AppError(500, 'Error al obtener el usuario');
+      logger.error('Failed to get user:', error);
+      throw new AppError(500, 'Failed to get user');
     }
   }
 
-  /**
-   * Actualiza un usuario
-   * @param id ID del usuario
-   * @param userData Datos actualizados del usuario
-   * @returns Usuario actualizado
-   */
   async updateUser(id: string, userData: UpdateUserDTO): Promise<User> {
     try {
       const user = await this.usersRepository.findById(id);
-      if (!user) {
-        throw new AppError(404, 'Usuario no encontrado');
-      }
+      if (!user) throw new AppError(404, 'User not found');
 
       if (userData.email && userData.email !== user.email) {
         const existingUser = await this.usersRepository.findByEmail(userData.email);
-        if (existingUser) {
-          throw new AppError(400, 'El email ya está registrado');
-        }
+        if (existingUser) throw new AppError(409, 'Email is already registered');
       }
-
-      if (userData.password) {
-        userData.password = await bcrypt.hash(userData.password, 10);
+      if (userData.username && userData.username !== user.username) {
+        const existingUsername = await this.usersRepository.findByUsername(userData.username);
+        if (existingUsername) throw new AppError(409, 'Username is already taken');
       }
-
-      const updatedUser = await this.usersRepository.update(id, userData);
-      logger.info(`Usuario actualizado: ${updatedUser.email}`);
+      const updates = {
+        ...userData,
+        ...(userData.password ? { password: await bcrypt.hash(userData.password, 10) } : {}),
+      };
+      const updatedUser = await this.usersRepository.update(id, updates);
       return updatedUser;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error(`Error al actualizar usuario ${id}:`, error);
-      throw new AppError(500, 'Error al actualizar el usuario');
+      logger.error('Failed to update user:', error);
+      throw new AppError(500, 'Failed to update user');
     }
   }
 
-  /**
-   * Elimina un usuario
-   * @param id ID del usuario
-   */
   async deleteUser(id: string): Promise<void> {
     try {
       const user = await this.usersRepository.findById(id);
-      if (!user) {
-        throw new AppError(404, 'Usuario no encontrado');
-      }
-
+      if (!user) throw new AppError(404, 'User not found');
       await this.usersRepository.delete(id);
-      logger.info(`Usuario eliminado: ${user.email}`);
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error(`Error al eliminar usuario ${id}:`, error);
-      throw new AppError(500, 'Error al eliminar el usuario');
+      logger.error('Failed to delete user:', error);
+      throw new AppError(500, 'Failed to delete user');
     }
   }
 
-  /**
-   * Autentica a un usuario
-   * @param email Email del usuario
-   * @param password Contraseña del usuario
-   * @returns Usuario autenticado
-   */
-  async authenticateUser(email: string, password: string) {
+  async authenticateUser(email: string, password: string): Promise<User> {
     try {
       const user = await this.usersRepository.verifyCredentials(email, password);
-      if (!user) {
-        throw new AppError(401, 'Credenciales inválidas');
-      }
+      if (!user) throw new AppError(401, 'Invalid email or password');
       return user;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      logger.error(`Error al autenticar usuario con email ${email}:`, error);
-      throw new AppError(500, 'Error al autenticar el usuario');
+      logger.error('Authentication failed:', error);
+      throw new AppError(500, 'Authentication failed');
     }
   }
 }
