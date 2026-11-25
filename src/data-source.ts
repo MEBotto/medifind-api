@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { logger } from '@/utils/logger';
 
 import { User } from './users/models/User';
+import { AuditLog } from './audit/models/AuditLog';
 import { Role } from './roles/models/Role';
 import { Permission } from './roles/models/Permission';
 import { RolePermission } from './roles/models/RolePermission';
@@ -28,9 +29,14 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
-  migrations: ['src/migrations/*.ts'],
-  synchronize: true,
+  entities: [AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
+  // Match timestamp-prefixed migration files only; never load Jest test modules.
+  // Use compiled JavaScript migrations when running from dist in production.
+  migrations: [process.env.NODE_ENV === 'production'
+    ? 'dist/migrations/[0-9]*.js'
+    : 'src/migrations/[0-9]*.ts'],
+  // Never auto-modify a real database schema. Tests use an isolated disposable DB.
+  synchronize: process.env.NODE_ENV === 'test',
   logging: false,
 });
 

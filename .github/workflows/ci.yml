@@ -56,6 +56,8 @@ jobs:
       - run: npm ci
       - name: Verify Postman collection is committed
         run: test -f tests/postman/MediFind.postman_collection.json
+      - name: Initialize roles in isolated test database
+        run: npm run seed:roles
       - name: Start API
         run: |
           npm run dev > /tmp/medifind-api.log 2>&1 &
@@ -82,6 +84,10 @@ jobs:
             --env-var "baseUrl=http://localhost:3001/api" \
             --env-var "token=" \
             --env-var "userId="
+      - name: Run PostgreSQL integration tests
+        env:
+          RUN_DB_INTEGRATION: '1'
+        run: npm test -- --runInBand src/products/products.integration.test.ts src/migrations/rbac-audit.integration.test.ts
       - name: Show API logs on failure
         if: failure()
         run: cat /tmp/medifind-api.log || true

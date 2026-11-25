@@ -5,5 +5,5 @@ export const toPublicUser = (user: User) => ({
   id: user.id,
   username: user.username,
   email: user.email,
-  role: user.role?.name ?? null,
+  role: user.role?.code ?? null,
 });

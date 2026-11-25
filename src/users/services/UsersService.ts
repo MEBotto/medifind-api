@@ -4,11 +4,21 @@ import { User } from '../models/User';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import bcrypt from 'bcrypt';
+import AppDataSource from '@/data-source';
+import { Role } from '@/roles/models/Role';
+import { AuditLog } from '@/audit/models/AuditLog';
 
 class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
-  async createUser(userData: CreateUserDTO): Promise<User> {
+  /** Public registration never accepts a client-supplied role or pharmacy. */
+  async registerCustomer(userData: CreateUserDTO): Promise<User> {
+    const customerRole = await AppDataSource.getRepository(Role).findOneBy({ code: 'CUSTOMER' });
+    if (!customerRole) throw new AppError(503, 'Customer registration is not configured');
+    return this.createUser(userData, customerRole);
+  }
+
+  async createUser(userData: CreateUserDTO, role?: Role): Promise<User> {
     try {
       const existingUser = await this.usersRepository.findByEmail(userData.email);
       if (existingUser) throw new AppError(409, 'Email is already registered');
@@ -19,6 +29,7 @@ class UsersService {
       const user = await this.usersRepository.create({
         ...userData,
         password: hashedPassword,
+        ...(role ? { role } : {}),
       });
       logger.info('User created successfully');
       return user;
@@ -41,42 +52,55 @@ class UsersService {
     }
   }
 
-  async updateUser(id: string, userData: UpdateUserDTO): Promise<User> {
-    try {
-      const user = await this.usersRepository.findById(id);
+  /** Updates a user and writes the audit event in the same transaction. */
+  async updateUser(id: string, userData: UpdateUserDTO, actorId: string): Promise<User> {
+    return AppDataSource.transaction(async manager => {
+      const repository = manager.getRepository(User);
+      const user = await repository.findOne({ where: { id }, relations: { role: true, pharmacy: true } });
       if (!user) throw new AppError(404, 'User not found');
 
-      if (userData.email && userData.email !== user.email) {
-        const existingUser = await this.usersRepository.findByEmail(userData.email);
-        if (existingUser) throw new AppError(409, 'Email is already registered');
+      if (userData.email && userData.email !== user.email &&
+          await repository.findOneBy({ email: userData.email })) {
+        throw new AppError(409, 'Email is already registered');
       }
-      if (userData.username && userData.username !== user.username) {
-        const existingUsername = await this.usersRepository.findByUsername(userData.username);
-        if (existingUsername) throw new AppError(409, 'Username is already taken');
+      if (userData.username && userData.username !== user.username &&
+          await repository.findOneBy({ username: userData.username })) {
+        throw new AppError(409, 'Username is already taken');
       }
-      const updates = {
-        ...userData,
-        ...(userData.password ? { password: await bcrypt.hash(userData.password, 10) } : {}),
-      };
-      const updatedUser = await this.usersRepository.update(id, updates);
-      return updatedUser;
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error('Failed to update user:', error);
-      throw new AppError(500, 'Failed to update user');
-    }
+
+      const before = { username: user.username, email: user.email };
+      const { password, ...safeFields } = userData;
+      Object.assign(user, safeFields);
+      if (password) user.password = await bcrypt.hash(password, 12);
+      const updated = await repository.save(user);
+      const logs = manager.getRepository(AuditLog);
+      await logs.save(logs.create({
+        action: 'USER_UPDATED', entityType: 'User', entityId: id,
+        userId: actorId, pharmacyId: user.pharmacy?.id ?? null,
+        oldValues: before,
+        newValues: { username: updated.username, email: updated.email },
+        metadata: { passwordChanged: Boolean(password) },
+      }));
+      return updated;
+    });
   }
 
-  async deleteUser(id: string): Promise<void> {
-    try {
-      const user = await this.usersRepository.findById(id);
+  /** Deletes a user and audits the deletion atomically. */
+  async deleteUser(id: string, actorId: string): Promise<void> {
+    await AppDataSource.transaction(async manager => {
+      const repository = manager.getRepository(User);
+      const user = await repository.findOne({ where: { id }, relations: { role: true, pharmacy: true } });
       if (!user) throw new AppError(404, 'User not found');
-      await this.usersRepository.delete(id);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error('Failed to delete user:', error);
-      throw new AppError(500, 'Failed to delete user');
-    }
+      if (id === actorId) throw new AppError(403, 'Administrators cannot delete their own account');
+
+      const logs = manager.getRepository(AuditLog);
+      await logs.save(logs.create({
+        action: 'USER_DELETED', entityType: 'User', entityId: id,
+        userId: actorId, pharmacyId: user.pharmacy?.id ?? null,
+        oldValues: { username: user.username, email: user.email, roleCode: user.role?.code ?? null },
+      }));
+      await repository.remove(user);
+    });
   }
 
   async authenticateUser(email: string, password: string): Promise<User> {

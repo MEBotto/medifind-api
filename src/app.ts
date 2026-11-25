@@ -5,6 +5,7 @@ import { logger } from './utils/logger';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import { auditMutations } from '@/audit/middleware/audit.middleware';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+app.use(auditMutations);
 app.use('/api', router);
 app.use(errorHandler);
 

@@ -7,11 +7,14 @@ export class Role {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ nullable: true })
+  @Column({ unique: true, length: 50 })
+  code: string;
+
+  @Column({ nullable: true, length: 100 })
   name: string;
 
-  @Column({ nullable: true })
-  description: string;
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
 
   @OneToMany(() => User, user => user.role)
   users: User[];

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '@/middleware/auth.middleware';
 import UsersService from '../services/UsersService';
 import { CreateUserDTO, UpdateUserDTO } from '../dtos/user.dto';
 import { AppError } from '@/middleware/error.middleware';
@@ -23,16 +24,18 @@ class UsersController {
     } catch (error) { this.handleError(res, error); }
   };
 
-  updateUser = async (req: Request, res: Response): Promise<void> => {
+  updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const user = await this.usersService.updateUser(req.params.id, req.body as UpdateUserDTO);
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      const user = await this.usersService.updateUser(req.params.id, req.body as UpdateUserDTO, req.user.id);
       sendSuccess(res, toPublicUser(user), 'User updated successfully', undefined, 'USER_UPDATED');
     } catch (error) { this.handleError(res, error); }
   };
 
-  deleteUser = async (req: Request, res: Response): Promise<void> => {
+  deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      await this.usersService.deleteUser(req.params.id);
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      await this.usersService.deleteUser(req.params.id, req.user.id);
       sendSuccess(res, null, 'User deleted successfully', undefined, 'USER_DELETED');
     } catch (error) { this.handleError(res, error); }
   };

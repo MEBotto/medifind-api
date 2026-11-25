@@ -14,9 +14,9 @@ class AuthController {
 
   register = async (req: Request, res: Response): Promise<void> => {
     try {
-      const user = await this.usersService.createUser(req.body as CreateUserDTO);
+      const user = await this.usersService.registerCustomer(req.body as CreateUserDTO);
       // Never invent a role: missing roles are represented as null.
-      const payload = { id: user.id, email: user.email, role: user.role?.name ?? null };
+      const payload = { id: user.id, email: user.email, role: user.role?.code ?? null };
       const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '1d' });
       sendCreated(res, { user: toPublicUser(user), token }, 'User registered successfully', 'AUTH_REGISTER_SUCCESS');
     } catch (error) {
@@ -33,7 +33,7 @@ class AuthController {
     try {
       const { email, password } = req.body as LoginDTO;
       const user = await this.usersService.authenticateUser(email, password);
-      const payload = { id: user.id, email: user.email, role: user.role?.name ?? null };
+      const payload = { id: user.id, email: user.email, role: user.role?.code ?? null };
       const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '1d' });
       sendSuccess(res, { user: toPublicUser(user), token }, 'Login successful', undefined, 'AUTH_LOGIN_SUCCESS');
     } catch (error) {

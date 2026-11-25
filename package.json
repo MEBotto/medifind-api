@@ -16,7 +16,9 @@
     "db:wipe:force": "ts-node -r tsconfig-paths/register src/scripts/wipe-db.ts --force",
     "test": "jest",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "seed:roles": "ts-node -r tsconfig-paths/register src/scripts/seed-roles.ts",
+    "bootstrap:admin": "ts-node -r tsconfig-paths/register src/scripts/bootstrap-admin.ts"
   },
   "keywords": [],
   "author": "",
