@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, DeepPartial } from 'typeorm';
 import { Shift } from '@/shifts/models/Shift';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
@@ -23,8 +23,8 @@ class PharmacysRepository {
   async create(data: CreatePharmacyDTO): Promise<Pharmacy> {
     try {
       const { idShift, ...fields } = data;
-      const entity = this.ormRepository.create(fields);
-      if (idShift !== undefined) entity.shift = await this.resolveShift(idShift);
+      const entity = this.ormRepository.create(fields as DeepPartial<Pharmacy>);
+      if (idShift !== undefined) entity.shift = (await this.resolveShift(idShift)) ?? undefined;
       return await this.ormRepository.save(entity);
     } catch (error) {
       if (error instanceof AppError) throw error;
