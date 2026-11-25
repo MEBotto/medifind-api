@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import AppDataSource from '@/data-source';
 import { Role } from '@/roles/models/Role';
 import { User } from '@/users/models/User';
+import { Permission } from '@/roles/models/Permission';
+import { RolePermission } from '@/roles/models/RolePermission';
 import { DEFAULT_ROLES } from '@/roles/constants/role-codes';
 
 /**
@@ -32,6 +34,36 @@ async function main(): Promise<void> {
           await roles.update(existing.id, { name: role.name, description: role.description });
         } else {
           await roles.save(roles.create(role));
+        }
+      }
+
+      // Seed the permission catalog and default role assignments.
+      // Current HTTP authorization still uses requireRole; these assignments
+      // are reference data for the upcoming fine-grained permission middleware.
+      const definitions = [
+        { code: 'USERS_MANAGE', name: 'Administrar usuarios', roles: ['ADMIN'] },
+        { code: 'ROLES_MANAGE', name: 'Administrar roles', roles: ['ADMIN'] },
+        { code: 'PHARMACIES_MANAGE', name: 'Administrar farmacias', roles: ['ADMIN'] },
+        { code: 'PRODUCTS_MANAGE', name: 'Administrar productos', roles: ['ADMIN', 'PHARMACIST'] },
+      ] as const;
+      const permissions = manager.getRepository(Permission);
+      const assignments = manager.getRepository(RolePermission);
+      for (const definition of definitions) {
+        let permission = await permissions.findOneBy({ code: definition.code });
+        if (!permission) {
+          permission = await permissions.save(permissions.create({
+            code: definition.code, name: definition.name,
+          }));
+        } else if (permission.name !== definition.name) {
+          permission.name = definition.name;
+          await permissions.save(permission);
+        }
+        for (const roleCode of definition.roles) {
+          const role = await roles.findOneByOrFail({ code: roleCode });
+          const existing = await assignments.findOne({
+            where: { role: { id: role.id }, permission: { id: permission.id } },
+          });
+          if (!existing) await assignments.save(assignments.create({ role, permission }));
         }
       }
 
