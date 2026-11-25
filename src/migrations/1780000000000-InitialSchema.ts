@@ -17,8 +17,13 @@ export class InitialSchema1780000000000 implements MigrationInterface {
     // Never run generated DROP statements against existing user data.
     // TypeORM 0.3's schema builder uses the same entity metadata as the API.
     // Generate the CREATE statements without enabling synchronize:true.
+    const before = await queryRunner.query("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename");
+    console.info('InitialSchema tables before schema builder:', before.map((row: { tablename: string }) => row.tablename));
     const schemaBuilder = queryRunner.connection.driver.createSchemaBuilder();
     const sql = await schemaBuilder.log();
+    const after = await queryRunner.query("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename");
+    console.info('InitialSchema tables after schema builder:', after.map((row: { tablename: string }) => row.tablename));
+    console.info('InitialSchema planned DDL:', sql.upQueries.map(query => query.query));
     const destructive = sql.upQueries.filter(query => /\\b(DROP\\s+(TABLE|COLUMN|INDEX|CONSTRAINT)|TRUNCATE|DELETE\\s+FROM)\\b/i.test(query.query));
     if (destructive.length) {
       throw new Error('InitialSchema detected destructive schema changes; review and migrate existing data manually');
