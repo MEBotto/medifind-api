@@ -17,9 +17,9 @@ Roles and permissions use stable uppercase `code` values; `name` is display text
 7. To create the **first** administrator only, set `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_USERNAME`, and `BOOTSTRAP_ADMIN_PASSWORD` (at least 12 characters) in a secure environment and run `npm run bootstrap:admin`. Do not commit credentials. The command refuses to run if any administrator exists.
 8. Start the API. Never run a production DB with `NODE_ENV=test`.
 
-## Security limitations requiring follow-up before merge
-- Pharmacy and product mutations are currently **ADMIN-only** until complete pharmacist ownership checks are implemented. This intentionally avoids cross-pharmacy access.
+## Remaining deployment and security checks
+- Product writes allow ADMIN and PHARMACIST, with pharmacy ownership enforced in the service. Pharmacy metadata writes remain ADMIN-only.
 - The HTTP mutation audit records outcomes asynchronously and may fail independently of the operation; critical mutations need same-transaction audit records.
 - Existing CRUD endpoints outside users/roles/pharmacies/products still need permission review.
-- Admin-only user update/delete need transactional audit and a policy for changing role/pharmacy.
-- Existing database compatibility, CI build, Newman and integration tests must pass before merge.
+- Admin-only user update/delete now write transactional audit records; role/pharmacy reassignment still requires a dedicated, reviewed endpoint.
+- CI exercises the RBAC migration against a synchronized test schema, not an actual pre-upgrade legacy snapshot. Before deploying to an existing database, rehearse on a restored copy of its real schema and data.
