@@ -16,6 +16,12 @@ async function main(): Promise<void> {
   }
   await AppDataSource.initialize();
   try {
+    // Refuse to initialize a fresh database until a complete baseline migration exists.
+    // The existing RBAC migration only upgrades an already-created schema.
+    const hasBaseline = AppDataSource.migrations.some(migration => migration.name?.includes('InitialSchema'));
+    if (!hasBaseline) {
+      throw new Error('Missing initial schema migration: production setup is not ready for an empty database');
+    }
     await AppDataSource.runMigrations({ transaction: 'all' });
     await AppDataSource.transaction(async manager => {
       await manager.query('SELECT pg_advisory_xact_lock(783004220)');
