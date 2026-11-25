@@ -87,7 +87,7 @@ jobs:
       - name: Run PostgreSQL integration tests
         env:
           RUN_DB_INTEGRATION: '1'
-        run: npm test -- --runInBand src/products/products.integration.test.ts
+        run: npm test -- --runInBand src/products/products.integration.test.ts src/migrations/rbac-audit.integration.test.ts
       - name: Show API logs on failure
         if: failure()
         run: cat /tmp/medifind-api.log || true
