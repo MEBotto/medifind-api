@@ -21,11 +21,13 @@ export class RbacAudit1790000000000 implements MigrationInterface {
     await queryRunner.query('ALTER TABLE "roles" ALTER COLUMN "code" SET NOT NULL');
     await queryRunner.query('CREATE UNIQUE INDEX IF NOT EXISTS "UQ_roles_code" ON "roles" ("code")');
     await queryRunner.query('CREATE UNIQUE INDEX IF NOT EXISTS "UQ_permissions_code" ON "permissions" ("code")');
-    await queryRunner.query(`DELETE FROM "role_permission" a USING "role_permission" b
-      WHERE a."idRole" = b."idRole" AND a."idPermission" = b."idPermission" AND a."id" > b."id"`);
+    // Do not delete legacy assignments implicitly; require manual review of duplicates.
+    const duplicateAssignments = await queryRunner.query(`SELECT "idRole", "idPermission", count(*) AS total
+      FROM "role_permission" GROUP BY "idRole", "idPermission" HAVING count(*) > 1`);
+    if (duplicateAssignments.length) throw new Error('Duplicate role-permission assignments: review before migrating');
     await queryRunner.query('CREATE UNIQUE INDEX IF NOT EXISTS "UQ_role_permission_pair" ON "role_permission" ("idRole", "idPermission")');
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS "audit_logs" (
-      "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       "userId" uuid NULL, "pharmacyId" uuid NULL,
       "action" varchar(100) NOT NULL, "entityType" varchar(100) NOT NULL,
       "entityId" uuid NULL, "oldValues" jsonb NULL, "newValues" jsonb NULL,
