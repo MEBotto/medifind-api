@@ -23,7 +23,9 @@ export class InitialSchema1780000000000 implements MigrationInterface {
 
     // Some installations were initialized using TypeORM synchronize before
     // migrations were introduced. Never replay CREATE TABLE on those schemas.
-    if (present.size === entityTables.length) {
+    const missingTables = entityTables.filter(table => !present.has(table));
+    // audit_logs is introduced by the next RBAC migration for legacy schemas.
+    if (present.size > 0 && missingTables.every(table => table === 'audit_logs')) {
       console.info('InitialSchema: application tables already exist; leaving schema unchanged');
       return;
     }
@@ -31,8 +33,7 @@ export class InitialSchema1780000000000 implements MigrationInterface {
     // Partial schemas must be reviewed; automatically reconciling them can
     // destroy columns or constraints and is not a safe production migration.
     if (present.size > 0) {
-      const missing = entityTables.filter(table => !present.has(table));
-      throw new Error(`InitialSchema detected a partial schema; missing tables: ${missing.join(', ')}`);
+      throw new Error(`InitialSchema detected a partial schema; missing tables: ${missingTables.join(', ')}`);
     }
 
     const schemaBuilder = queryRunner.connection.driver.createSchemaBuilder();
