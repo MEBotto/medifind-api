@@ -1,6 +1,5 @@
 import { CatalogRequestsService } from './CatalogRequestsService';
 import AppDataSource from '@/data-source';
-import { AppError } from '@/middleware/error.middleware';
 import { CatalogRequestStatus, CatalogRequestType } from '../models/CatalogRequest';
 
 jest.mock('@/data-source', () => ({ __esModule: true, default: { transaction: jest.fn(), getRepository: jest.fn() } }));
