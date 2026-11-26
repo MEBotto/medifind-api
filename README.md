@@ -1,3 +1,42 @@
+# MediFind API
+
+Backend REST de MediFind para gestión de usuarios, farmacias, medicamentos, turnos y farmacias favoritas. Construido con Node.js, TypeScript, Express, PostgreSQL, TypeORM y Zod.
+
+## Funcionalidades principales
+
+- Autenticación JWT y control de acceso por roles.
+- Gestión de farmacias, turnos y productos.
+- Búsqueda avanzada de farmacias con paginación, distancia y filtros de inventario.
+- Farmacias favoritas privadas por usuario, con reactivación y desactivación lógica.
+- Validación de entrada con Zod y respuestas HTTP estructuradas.
+
+## Documentación de API
+
+- [Búsqueda y filtros de farmacias](docs/pharmacy-search.md)
+- [Farmacias favoritas](docs/favorite-pharmacies.md)
+
+### Ejemplo: búsqueda paginada
+
+```http
+GET /pharmacys?search=central&page=1&limit=20&orderBy=name&order=ASC
+Authorization: Bearer <token>
+```
+
+Para buscar solo las favoritas del usuario autenticado, agregá `favoritesOnly=true`.
+
+### Desarrollo
+
+```bash
+npm install
+npm run dev
+npm run build
+npm test -- --runInBand
+```
+
+Configurá las variables de entorno siguiendo `.env.example` y ejecutá las migraciones correspondientes antes de iniciar la API.
+
+---
+
 # FULLMINDTECH
 
 ## Base Node TS
