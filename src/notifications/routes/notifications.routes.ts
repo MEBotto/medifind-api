@@ -3,9 +3,25 @@ import { authenticateJWT, AuthRequest } from '@/middleware/auth.middleware';
 import { AppError } from '@/middleware/error.middleware';
 import AppDataSource from '@/data-source';
 import { Notification } from '../models/Notification';
+import { subscribeNotifications } from '../realtime/notification-stream';
 
 const router = Router();
 router.use(authenticateJWT);
+
+// Use fetch() with Authorization header and ReadableStream on the client.
+router.get('/stream', (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) throw new AppError(401, 'Authentication required');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    const unsubscribe = subscribeNotifications(req.user.id, res);
+    req.on('close', unsubscribe);
+  } catch (error) { next(error); }
+});
 
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
