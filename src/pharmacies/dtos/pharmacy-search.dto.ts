@@ -1,20 +1,38 @@
 import { z } from 'zod';
 
 const numeric = z.coerce.number().finite();
+const optionalBoolean = z.enum(['true', 'false']).transform(value => value === 'true');
+const optionalText = z.string().trim().min(1).max(150);
+const uuid = z.string().uuid();
+
 export const PharmacySearchSchema = z.object({
   search: z.string().trim().max(150).optional(),
-  page: z.coerce.number().int().min(1).default(1),
+  name: optionalText.optional(),
+  address: optionalText.optional(),
+  idShift: uuid.optional(),
+  shiftCode: z.string().trim().min(1).max(10).optional(),
+  hasShift: optionalBoolean.optional(),
+  hasCoordinates: optionalBoolean.optional(),
+  hasProducts: optionalBoolean.optional(),
+  productName: optionalText.optional(),
+  idCategory: uuid.optional(),
+  idLaboratory: uuid.optional(),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   lat: numeric.min(-90).max(90).optional(),
   lng: numeric.min(-180).max(180).optional(),
   radiusKm: numeric.positive().max(500).optional(),
-  orderBy: z.enum(['name', 'distance']).default('name'),
+  orderBy: z.enum(['name', 'address', 'distance', 'id']).default('name'),
   order: z.enum(['ASC', 'DESC']).default('ASC'),
-}).refine(data => (data.lat === undefined) === (data.lng === undefined), {
-  message: 'lat and lng must be provided together', path: ['lng'],
-}).refine(data => data.radiusKm === undefined || data.lat !== undefined, {
-  message: 'radiusKm requires lat and lng', path: ['radiusKm'],
-}).refine(data => data.orderBy !== 'distance' || data.lat !== undefined, {
-  message: 'distance ordering requires lat and lng', path: ['orderBy'],
+}).strict().superRefine((data, ctx) => {
+  if ((data.lat === undefined) !== (data.lng === undefined)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'lat and lng must be provided together', path: ['lng'] });
+  }
+  if (data.radiusKm !== undefined && data.lat === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'radiusKm requires lat and lng', path: ['radiusKm'] });
+  }
+  if (data.orderBy === 'distance' && data.lat === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'distance ordering requires lat and lng', path: ['orderBy'] });
+  }
 });
 export type PharmacySearchDTO = z.infer<typeof PharmacySearchSchema>;
