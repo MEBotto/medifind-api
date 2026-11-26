@@ -1,75 +1,73 @@
 import { Repository } from 'typeorm';
 import { FavouritePharmacy } from '../models/FavouritePharmacy';
+import { Pharmacy } from '@/pharmacies/models/Pharmacy';
 import AppDataSource from '@/data-source';
-import { CreateFavouritePharmacyDTO, UpdateFavouritePharmacyDTO } from '../dtos/favourite-pharmacy.dto';
 import { AppError } from '@/middleware/error.middleware';
-import { logger } from '@/utils/logger';
 
 class FavouritePharmacysRepository {
-  private ormRepository: Repository<FavouritePharmacy>;
+  private readonly ormRepository: Repository<FavouritePharmacy>;
 
   constructor() {
     this.ormRepository = AppDataSource.getRepository(FavouritePharmacy);
   }
 
-  async create(data: CreateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
-    try {
-      const entity = this.ormRepository.create(data);
-      return await this.ormRepository.save(entity);
-    } catch (error) {
-      logger.error('Error al crear FavouritePharmacy:', error);
-      throw new AppError(500, 'Error al crear la entidad');
-    }
-  }
+  async create(userId: string, pharmacyId: string): Promise<FavouritePharmacy> {
+    const pharmacy = await AppDataSource.getRepository(Pharmacy).findOneBy({ id: pharmacyId });
+    if (!pharmacy) throw new AppError(404, 'Farmacia no encontrada');
 
-  async findById(id: string): Promise<FavouritePharmacy | null> {
-    try {
-      return await this.ormRepository.findOne({ where: { id } as any });
-    } catch (error) {
-      logger.error(`Error al buscar FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al buscar la entidad');
+    const existing = await this.ormRepository.findOne({
+      where: { user: { id: userId }, pharmacy: { id: pharmacyId } },
+      relations: { pharmacy: true },
+    });
+    if (existing) {
+      if (existing.active) return existing;
+      existing.active = true;
+      return this.ormRepository.save(existing);
     }
-  }
-
-  async findAll(): Promise<FavouritePharmacy[]> {
     try {
-      return await this.ormRepository.find();
+      return await this.ormRepository.save(this.ormRepository.create({
+        user: { id: userId }, pharmacy, active: true,
+      }));
     } catch (error) {
-      logger.error('Error al buscar favouritepharmacys:', error);
-      throw new AppError(500, 'Error al listar las entidades');
-    }
-  }
-
-  async update(id: string, data: UpdateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
-    try {
-      const entity = await this.findById(id);
-      if (!entity) {
-        throw new AppError(404, 'FavouritePharmacy no encontrado');
+      // Concurrent inserts cannot create duplicates because of the database UNIQUE constraint.
+      if ((error as { code?: string }).code === '23505') {
+        const duplicate = await this.ormRepository.findOne({
+          where: { user: { id: userId }, pharmacy: { id: pharmacyId } },
+          relations: { pharmacy: true },
+        });
+        if (duplicate) return duplicate;
       }
-
-      Object.assign(entity, data);
-      return await this.ormRepository.save(entity);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error(`Error al actualizar FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al actualizar la entidad');
+      throw error;
     }
   }
 
-  async delete(id: string): Promise<void> {
-    try {
-      const entity = await this.findById(id);
-      if (!entity) {
-        throw new AppError(404, 'FavouritePharmacy no encontrado');
-      }
+  findById(id: string, userId: string): Promise<FavouritePharmacy | null> {
+    return this.ormRepository.findOne({
+      where: { id, user: { id: userId } },
+      relations: { pharmacy: true },
+    });
+  }
 
-      await this.ormRepository.remove(entity);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error(`Error al eliminar FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al eliminar la entidad');
-    }
+  findAll(userId: string): Promise<FavouritePharmacy[]> {
+    return this.ormRepository.find({
+      where: { user: { id: userId }, active: true },
+      relations: { pharmacy: true },
+      order: { id: 'ASC' },
+    });
+  }
+
+  async update(id: string, userId: string, active: boolean): Promise<FavouritePharmacy> {
+    const entity = await this.findById(id, userId);
+    if (!entity) throw new AppError(404, 'Favorito no encontrado');
+    entity.active = active;
+    return this.ormRepository.save(entity);
+  }
+
+  async delete(id: string, userId: string): Promise<void> {
+    const entity = await this.findById(id, userId);
+    if (!entity) throw new AppError(404, 'Favorito no encontrado');
+    entity.active = false;
+    await this.ormRepository.save(entity);
   }
 }
-
 export default FavouritePharmacysRepository;
