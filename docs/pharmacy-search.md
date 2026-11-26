@@ -14,6 +14,7 @@ Endpoint autenticado: `GET /pharmacys` (se mantiene la ruta existente).
 | hasShift | true/false | Con o sin turno |
 | hasCoordinates | true/false | Con o sin geolocalización |
 | hasProducts | true/false | Con o sin productos **activos** |
+| favoritesOnly | true/false | Solo farmacias favoritas **activas del usuario autenticado** |
 | productName | string | Nombre de producto activo |
 | idCategory | UUID | Categoría de producto activo |
 | idLaboratory | UUID | Laboratorio de producto activo |
@@ -24,7 +25,7 @@ Endpoint autenticado: `GET /pharmacys` (se mantiene la ruta existente).
 | page | entero | Página desde 1; predeterminado 1 |
 | limit | entero | Registros por página, 1-100; predeterminado 20 |
 
-Los filtros se combinan con AND. `search` combina nombre y dirección con OR. Los filtros de producto se evalúan sobre un mismo producto activo. Las búsquedas de texto ignoran mayúsculas/minúsculas.
+El filtro `favoritesOnly=true` usa exclusivamente el usuario del JWT y la tabla `favourite_pharmacies` con `active=true`; no acepta `userId` desde el cliente. Puede combinarse con nombre, distancia, productos y demás filtros.\n\nLos filtros se combinan con AND. `search` combina nombre y dirección con OR. Los filtros de producto se evalúan sobre un mismo producto activo. Las búsquedas de texto ignoran mayúsculas/minúsculas.
 
 Ejemplo:
 
