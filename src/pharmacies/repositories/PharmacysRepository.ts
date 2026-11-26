@@ -72,14 +72,14 @@ class PharmacysRepository {
           const weekday = `EXTRACT(ISODOW FROM ${localNow})`;
           const clock = `to_char(${localNow}, 'HH24:MI')`;
           const hoursOpen = `(pharmacy."open24Hours" = true OR EXISTS (
-            SELECT 1 FROM jsonb_array_elements(pharmacy."weeklyHours") AS schedule(interval)
+            SELECT 1 FROM jsonb_array_elements(pharmacy."weeklyHours") AS hours(entry)
             WHERE (
-              ((schedule.interval->>'dayOfWeek')::int = ${weekday}
-                AND schedule.interval->>'opensAt' <= ${clock}
-                AND (schedule.interval->>'closesAt' > ${clock} OR schedule.interval->>'closesAt' < schedule.interval->>'opensAt'))
-              OR ((schedule.interval->>'dayOfWeek')::int = CASE WHEN ${weekday} = 1 THEN 7 ELSE ${weekday} - 1 END
-                AND schedule.interval->>'closesAt' < schedule.interval->>'opensAt'
-                AND schedule.interval->>'closesAt' > ${clock})
+              ((hours.entry->>'dayOfWeek')::int = ${weekday}
+                AND hours.entry->>'opensAt' <= ${clock}
+                AND (hours.entry->>'closesAt' > ${clock} OR hours.entry->>'closesAt' < hours.entry->>'opensAt'))
+              OR ((hours.entry->>'dayOfWeek')::int = CASE WHEN ${weekday} = 1 THEN 7 ELSE ${weekday} - 1 END
+                AND hours.entry->>'closesAt' < hours.entry->>'opensAt'
+                AND hours.entry->>'closesAt' > ${clock})
             )
           ))`;
           const dutyOpen = dutyShiftId ? 'shift.id = :openDutyShiftId' : 'FALSE';
