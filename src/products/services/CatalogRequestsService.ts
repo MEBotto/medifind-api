@@ -145,12 +145,12 @@ export class CatalogRequestsService {
           }));
           // The requesting pharmacy receives a private, inactive draft listing.
           // Price and stock must be configured before public availability.
-          const requestPharmacy = await manager.getRepository(Pharmacy).createQueryBuilder('pharmacy')
-            .innerJoin('catalog_requests', 'catalogRequest', 'catalogRequest.pharmacyId = pharmacy.id')
-            .where('catalogRequest.id = :id', { id: request.id }).getOne();
-          if (!requestPharmacy) throw new AppError(404, 'Request pharmacy not found');
+          const requestPharmacy = await manager.getRepository(CatalogRequest).findOne({
+            where: { id: request.id }, relations: { pharmacy: true },
+          });
+          if (!requestPharmacy?.pharmacy) throw new AppError(404, 'Request pharmacy not found');
           await manager.save(PharmacyProduct, manager.create(PharmacyProduct, {
-            pharmacy: requestPharmacy, product: createdProduct, price: null, quantity: 0, active: false,
+            pharmacy: requestPharmacy.pharmacy, product: createdProduct, price: null, quantity: 0, active: false,
           }));
         }
         request.status = CatalogRequestStatus.APPROVED;
