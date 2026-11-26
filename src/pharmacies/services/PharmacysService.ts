@@ -36,9 +36,9 @@ class PharmacysService {
     }
   }
 
-  async getAllPharmacys(filters: PharmacySearchDTO): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
+  async getAllPharmacys(filters: PharmacySearchDTO, userId: string): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
-      return await this.pharmacysRepository.findAll(filters);
+      return await this.pharmacysRepository.findAll(filters, userId);
     } catch (error) {
       logger.error('Error al listar Pharmacys:', error);
       throw new AppError(500, 'Error al listar las entidades');
