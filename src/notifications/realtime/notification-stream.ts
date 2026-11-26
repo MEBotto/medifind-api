@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { Client } from 'pg';
+import { Client, ClientConfig } from 'pg';
 import AppDataSource from '@/data-source';
 import { Notification } from '../models/Notification';
 import { logger } from '@/utils/logger';
@@ -14,6 +14,7 @@ export function subscribeNotifications(userId: string, response: Response): () =
   response.write(': connected\n\n');
   const client: StreamClient = {
     userId, response, heartbeat: setInterval(() => response.write(': heartbeat\n\n'), 25000),
+    expiry: setTimeout(() => response.end(), 10 * 60 * 1000),
   };
   const set = subscribers.get(userId) ?? new Set<StreamClient>();
   set.add(client);
@@ -42,7 +43,8 @@ async function connectListener(): Promise<void> {
   const client = new Client({
     host: options.host, port: options.port, user: options.username,
     password: options.password, database: options.database,
-    ssl: options.ssl,
+    // TypeORM exposes Node TLS options; pg expects its narrower SSL config type.
+    ssl: options.ssl as ClientConfig['ssl'],
   });
   try {
     await client.connect();
