@@ -45,14 +45,14 @@ class PharmacysRepository {
     }
   }
 
-  async findAll(filters: PharmacySearchDTO, userId: string): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
+  async findAll(filters: PharmacySearchDTO, userId: string, now: Date = new Date()): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
       if (filters.onDuty !== undefined || filters.openNow !== undefined) {
         // Historical dutyDate denotes the guard beginning at 08:00 on that date.
         // Real-time filters use the guard active now, which may be yesterday's group.
-        const date = filters.dutyDate ?? activeDutyDate(new Date());
+        const date = filters.dutyDate ?? activeDutyDate(now);
         const [year, month, day] = date.split('-').map(Number);
         let dutyShiftId: string | undefined;
         try {
@@ -66,7 +66,8 @@ class PharmacysRepository {
           qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', { dutyShiftId });
         }
         if (filters.openNow !== undefined) {
-          const localNow = "timezone('America/Argentina/Buenos_Aires', CURRENT_TIMESTAMP)";
+          const localNow = "timezone('America/Argentina/Buenos_Aires', CAST(:currentInstant AS timestamptz))";
+          qb.setParameter('currentInstant', now.toISOString());
           const weekday = `EXTRACT(ISODOW FROM ${localNow})`;
           const clock = `to_char(${localNow}, 'HH24:MI')`;
           const hoursOpen = `(pharmacy."open24Hours" = true OR EXISTS (

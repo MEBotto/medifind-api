@@ -78,4 +78,31 @@ suite('PostgreSQL integration: pharmacy duty and opening hours', () => {
     const reloaded = await repo.findOneByOrFail({ id: ids[0] });
     expect(reloaded.weeklyHours).toEqual([{ dayOfWeek: 6, opensAt: '09:00', closesAt: '12:00' }]);
   });
+  it('switches active duty at 08:00 Argentina time across January/February', async () => {
+    const search = new PharmacysRepository();
+    const filters = PharmacySearchSchema.parse({ onDuty: 'true', search: suffix });
+    const before = await search.findAll(filters, '00000000-0000-4000-8000-000000000001', new Date('2026-02-01T10:59:00Z'));
+    const after = await search.findAll(filters, '00000000-0000-4000-8000-000000000001', new Date('2026-02-01T11:00:00Z'));
+    const january = await calendar.getCalendar(2026, 1);
+    expect(before.data.map(p => p.shift?.code?.trim())).toEqual([january.days[30].group]);
+    expect(after.data.map(p => p.shift?.code?.trim())).toEqual(['G']);
+  });
+
+  it('evaluates overnight hours across midnight and excludes the opening endpoint', async () => {
+    const pharmacyRepo = AppDataSource.getRepository(Pharmacy);
+    const pharmacy = await pharmacyRepo.findOneByOrFail({ id: ids[0] });
+    pharmacy.weeklyHours = [{ dayOfWeek: 6, opensAt: '22:00', closesAt: '02:00' }];
+    pharmacy.open24Hours = false;
+    await pharmacyRepo.save(pharmacy);
+    const search = new PharmacysRepository();
+    const filters = PharmacySearchSchema.parse({ openNow: 'true', search: suffix });
+    const check = async (iso: string) => (await search.findAll(filters,
+      '00000000-0000-4000-8000-000000000001', new Date(iso))).data.map(p => p.id);
+    // Saturday 2026-06-06: 21:59, 22:00; Sunday 2026-06-07: 01:59, 02:00 Argentina time.
+    expect(await check('2026-06-07T00:59:00Z')).not.toContain(pharmacy.id);
+    expect(await check('2026-06-07T01:00:00Z')).toContain(pharmacy.id);
+    expect(await check('2026-06-07T04:59:00Z')).toContain(pharmacy.id);
+    expect(await check('2026-06-07T05:00:00Z')).not.toContain(pharmacy.id);
+  });
+
 });
