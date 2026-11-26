@@ -18,6 +18,9 @@ import { Person } from './customers/models/Person';
 import { InsurancePlan } from './customers/models/InsurancePlan';
 import { MedicalInsurance } from './customers/models/MedicalInsurance';
 import { Product } from './products/models/Product';
+import { CatalogProduct } from './products/models/CatalogProduct';
+import { PharmacyProduct } from './products/models/PharmacyProduct';
+import { CatalogRequest } from './products/models/CatalogRequest';
 import { Category } from './products/models/Category';
 import { Laboratory } from './products/models/Laboratory';
 import { FavouritePharmacy } from './users/models/FavouritePharmacy';
@@ -29,7 +32,7 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, Category, Laboratory, FavouritePharmacy],
+  entities: [AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, CatalogProduct, PharmacyProduct, CatalogRequest, Category, Laboratory, FavouritePharmacy],
   // Match timestamp-prefixed migration files only; never load Jest test modules.
   // Use compiled JavaScript migrations when running from dist in production.
   migrations: [process.env.NODE_ENV === 'production'
