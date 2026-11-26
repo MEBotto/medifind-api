@@ -4,6 +4,7 @@ import { AuditLog } from '@/audit/models/AuditLog';
 import { Pharmacy } from '@/pharmacies/models/Pharmacy';
 import { User } from '@/users/models/User';
 import { Notification } from '@/notifications/models/Notification';
+import { publishNotifications } from '@/notifications/realtime/notification-publisher';
 import { PharmacyProduct } from '../models/PharmacyProduct';
 import { Category } from '../models/Category';
 import { Laboratory } from '../models/Laboratory';
@@ -44,11 +45,14 @@ export class CatalogRequestsService {
       }));
       const administrators = await manager.getRepository(User).createQueryBuilder('user')
         .innerJoin('user.role', 'role').where('role.code = :role', { role: 'ADMIN' }).getMany();
-      if (administrators.length) await manager.getRepository(Notification).save(administrators.map(admin => ({
+      if (administrators.length) {
+        const notifications = await manager.getRepository(Notification).save(administrators.map(admin => ({
         userId: admin.id, type: 'CATALOG_REQUEST_PENDING', title: 'Nueva solicitud de catálogo',
         message: `Hay una solicitud de ${request.type.toLowerCase()} pendiente de revisión: ${String(data.payload.name)}`,
         catalogRequestId: request.id, readAt: null,
       })));
+        await publishNotifications(manager, notifications);
+      }
       await manager.getRepository(AuditLog).save({
         action: 'CATALOG_REQUEST_CREATED', entityType: 'CatalogRequest', entityId: request.id,
         userId: actor.id, pharmacyId: pharmacy.id, newValues: { type: request.type, status: request.status },
@@ -165,7 +169,7 @@ export class CatalogRequestsService {
         .innerJoinAndSelect('catalogRequest.requestedBy', 'requestedBy')
         .where('catalogRequest.id = :id', { id: request.id }).getOne();
       if (!requester) throw new AppError(404, 'Request author not found');
-      await manager.getRepository(Notification).save({
+      const requesterNotification = await manager.getRepository(Notification).save({
         userId: requester.requestedBy.id,
         type: request.status === CatalogRequestStatus.APPROVED ? 'CATALOG_REQUEST_APPROVED' : 'CATALOG_REQUEST_REJECTED',
         title: request.status === CatalogRequestStatus.APPROVED ? 'Solicitud aprobada' : 'Solicitud rechazada',
@@ -174,6 +178,7 @@ export class CatalogRequestsService {
           : `Se rechazó tu solicitud de ${request.type.toLowerCase()}: ${name}. Motivo: ${request.rejectionReason}`,
         catalogRequestId: request.id, readAt: null,
       });
+      await publishNotifications(manager, requesterNotification);
       await manager.getRepository(AuditLog).save({
         action: request.status === CatalogRequestStatus.APPROVED ? 'CATALOG_REQUEST_APPROVED' : 'CATALOG_REQUEST_REJECTED',
         entityType: 'CatalogRequest', entityId: request.id, userId: actor.id,
