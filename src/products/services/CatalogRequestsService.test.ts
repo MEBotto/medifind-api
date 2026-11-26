@@ -89,6 +89,6 @@ describe('CatalogRequestsService review authorization and consistency', () => {
     expect(result.status).toBe(CatalogRequestStatus.REJECTED);
     expect(result.rejectionReason).toBe('Duplicate');
     expect(repo.save).toHaveBeenCalled();
-    expect(manager.query).not.toHaveBeenCalled();
+    expect(manager.query).toHaveBeenCalledWith('SELECT pg_notify($1, $2)', expect.any(Array));
   });
 });
