@@ -48,7 +48,7 @@ class PharmacysRepository {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
-      if (filters.onDuty !== undefined) {
+      if (filters.onDuty !== undefined || filters.openNow !== undefined) {
         // Use the pharmacy service timezone, not the server timezone.
         const parts = new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -56,12 +56,36 @@ class PharmacysRepository {
         const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
         const date = filters.dutyDate ?? `${today.year}-${today.month}-${today.day}`;
         const [year, month, day] = date.split('-').map(Number);
-        const calendar = await new ShiftCalendarService().getCalendar(year, month);
-        const duty = calendar.days[day - 1];
-        if (!duty) throw new AppError(422, 'Fecha fuera del calendario');
-        qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', {
-          dutyShiftId: duty.shiftId,
-        });
+        let dutyShiftId: string | undefined;
+        try {
+          const calendar = await new ShiftCalendarService().getCalendar(year, month);
+          dutyShiftId = calendar.days[day - 1]?.shiftId;
+        } catch (error) {
+          if (!(error instanceof AppError && error.statusCode === 404 && filters.onDuty === undefined)) throw error;
+        }
+        if (filters.onDuty !== undefined) {
+          if (!dutyShiftId) throw new AppError(422, 'Fecha fuera del calendario');
+          qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', { dutyShiftId });
+        }
+        if (filters.openNow !== undefined) {
+          const localNow = "timezone('America/Argentina/Buenos_Aires', CURRENT_TIMESTAMP)";
+          const weekday = `EXTRACT(ISODOW FROM ${localNow})`;
+          const clock = `to_char(${localNow}, 'HH24:MI')`;
+          const hoursOpen = `(pharmacy."open24Hours" = true OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(pharmacy."weeklyHours") AS schedule(interval)
+            WHERE (
+              ((schedule.interval->>'dayOfWeek')::int = ${weekday}
+                AND schedule.interval->>'opensAt' <= ${clock}
+                AND (schedule.interval->>'closesAt' > ${clock} OR schedule.interval->>'closesAt' < schedule.interval->>'opensAt'))
+              OR ((schedule.interval->>'dayOfWeek')::int = CASE WHEN ${weekday} = 1 THEN 7 ELSE ${weekday} - 1 END
+                AND schedule.interval->>'closesAt' < schedule.interval->>'opensAt'
+                AND schedule.interval->>'closesAt' > ${clock})
+            )
+          ))`;
+          const dutyOpen = dutyShiftId ? 'shift.id = :openDutyShiftId' : 'FALSE';
+          qb.andWhere(filters.openNow ? `(${hoursOpen} OR ${dutyOpen})` : `(NOT ${hoursOpen} AND NOT (${dutyOpen}))`,
+            dutyShiftId ? { openDutyShiftId: dutyShiftId } : {});
+        }
       }
       if (filters.favoritesOnly === true) {
         qb.andWhere(`EXISTS (
