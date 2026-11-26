@@ -1,71 +1,24 @@
 import FavouritePharmacysRepository from '../repositories/FavouritePharmacysRepository';
 import { CreateFavouritePharmacyDTO, UpdateFavouritePharmacyDTO } from '../dtos/favourite-pharmacy.dto';
 import { FavouritePharmacy } from '../models/FavouritePharmacy';
-import { AppError } from '@/middleware/error.middleware';
-import { logger } from '@/utils/logger';
 
 class FavouritePharmacysService {
-  constructor(
-    private readonly favouritePharmacysRepository: FavouritePharmacysRepository
-  ) {}
+  constructor(private readonly repository: FavouritePharmacysRepository) {}
 
-  async createFavouritePharmacy(data: CreateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
-    try {
-      const entity = await this.favouritePharmacysRepository.create(data);
-      logger.info('FavouritePharmacy creado exitosamente');
-      return entity;
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error('Error al crear FavouritePharmacy:', error);
-      throw new AppError(500, 'Error al crear la entidad');
-    }
+  createFavouritePharmacy(userId: string, data: CreateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
+    return this.repository.create(userId, data.idPharmacy);
   }
-
-  async getFavouritePharmacyById(id: string): Promise<FavouritePharmacy> {
-    try {
-      const entity = await this.favouritePharmacysRepository.findById(id);
-      if (!entity) {
-        throw new AppError(404, 'FavouritePharmacy no encontrado');
-      }
-      return entity;
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error(`Error al obtener FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al obtener la entidad');
-    }
+  getFavouritePharmacyById(userId: string, id: string): Promise<FavouritePharmacy | null> {
+    return this.repository.findById(id, userId);
   }
-
-  async getAllFavouritePharmacys(): Promise<FavouritePharmacy[]> {
-    try {
-      return await this.favouritePharmacysRepository.findAll();
-    } catch (error) {
-      logger.error('Error al listar FavouritePharmacys:', error);
-      throw new AppError(500, 'Error al listar las entidades');
-    }
+  getAllFavouritePharmacys(userId: string): Promise<FavouritePharmacy[]> {
+    return this.repository.findAll(userId);
   }
-
-  async updateFavouritePharmacy(id: string, data: UpdateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
-    try {
-      const updatedEntity = await this.favouritePharmacysRepository.update(id, data);
-      logger.info(`FavouritePharmacy actualizado: ${id}`);
-      return updatedEntity;
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error(`Error al actualizar FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al actualizar la entidad');
-    }
+  updateFavouritePharmacy(userId: string, id: string, data: UpdateFavouritePharmacyDTO): Promise<FavouritePharmacy> {
+    return this.repository.update(id, userId, data.active);
   }
-
-  async deleteFavouritePharmacy(id: string): Promise<void> {
-    try {
-      await this.favouritePharmacysRepository.delete(id);
-      logger.info(`FavouritePharmacy eliminado: ${id}`);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      logger.error(`Error al eliminar FavouritePharmacy ${id}:`, error);
-      throw new AppError(500, 'Error al eliminar la entidad');
-    }
+  deleteFavouritePharmacy(userId: string, id: string): Promise<void> {
+    return this.repository.delete(id, userId);
   }
 }
-
 export default FavouritePharmacysService;
