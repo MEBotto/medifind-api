@@ -9,8 +9,8 @@ const phone = z.union([
 
 const weeklyInterval = z.object({
   dayOfWeek: z.number().int().min(1).max(7),
-  opensAt: z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/),
-  closesAt: z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/),
+  opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 }).strict().refine(value => value.opensAt !== value.closesAt, 'Use open24Hours for 24h opening');
 
 const pharmacyFields = z.object({
