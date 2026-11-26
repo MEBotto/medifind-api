@@ -3,6 +3,7 @@ import { Shift } from '@/shifts/models/Shift';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
+import { PharmacySearchDTO } from '../dtos/pharmacy-search.dto';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 
@@ -42,12 +43,42 @@ class PharmacysRepository {
     }
   }
 
-  async findAll(): Promise<Pharmacy[]> {
+  async findAll(filters: PharmacySearchDTO): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
-      return await this.ormRepository.find({ relations: { shift: true } });
+      const qb = this.ormRepository.createQueryBuilder('pharmacy')
+        .leftJoinAndSelect('pharmacy.shift', 'shift');
+      if (filters.search) {
+        qb.andWhere('pharmacy.name ILIKE :search', { search: `%${filters.search}%` });
+      }
+      if (filters.lat !== undefined && filters.lng !== undefined) {
+        // Great-circle distance in km; clamp acos input for floating-point safety.
+        const distance = `(6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(:lat)) * cos(radians(pharmacy.lat)) *
+          cos(radians(pharmacy.lng) - radians(:lng)) +
+          sin(radians(:lat)) * sin(radians(pharmacy.lat))
+        ))))`;
+        qb.andWhere('pharmacy.lat IS NOT NULL AND pharmacy.lng IS NOT NULL')
+          .setParameters({ lat: filters.lat, lng: filters.lng });
+        if (filters.radiusKm !== undefined) {
+          qb.andWhere(`${distance} <= :radiusKm`, { radiusKm: filters.radiusKm });
+        }
+        if (filters.orderBy === 'distance') {
+          qb.addSelect(distance, 'distance_km').orderBy('distance_km', filters.order);
+        }
+      }
+      if (filters.orderBy === 'name') {
+        qb.orderBy('pharmacy.name', filters.order, 'NULLS LAST');
+      }
+      qb.addOrderBy('pharmacy.id', 'ASC');
+      const total = await qb.getCount();
+      const data = await qb.skip((filters.page - 1) * filters.limit)
+        .take(filters.limit).getMany();
+      return { data, total, page: filters.page, limit: filters.limit,
+        totalPages: Math.ceil(total / filters.limit) };
     } catch (error) {
-      logger.error('Error al buscar pharmacys:', error);
-      throw new AppError(500, 'Error al listar las entidades');
+      if (error instanceof AppError) throw error;
+      logger.error('Error al buscar farmacias:', error);
+      throw new AppError(500, 'Error al listar las farmacias');
     }
   }
 
