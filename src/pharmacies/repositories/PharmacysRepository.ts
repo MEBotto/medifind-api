@@ -1,5 +1,6 @@
 import { Repository, DeepPartial } from 'typeorm';
 import { Shift } from '@/shifts/models/Shift';
+import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
@@ -47,6 +48,21 @@ class PharmacysRepository {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
+      if (filters.onDuty !== undefined) {
+        // Use the pharmacy service timezone, not the server timezone.
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date());
+        const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        const date = filters.dutyDate ?? `${today.year}-${today.month}-${today.day}`;
+        const [year, month, day] = date.split('-').map(Number);
+        const calendar = await new ShiftCalendarService().getCalendar(year, month);
+        const duty = calendar.days[day - 1];
+        if (!duty) throw new AppError(422, 'Fecha fuera del calendario');
+        qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', {
+          dutyShiftId: duty.shiftId,
+        });
+      }
       if (filters.favoritesOnly === true) {
         qb.andWhere(`EXISTS (
           SELECT 1 FROM favourite_pharmacies favorite

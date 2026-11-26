@@ -44,3 +44,20 @@ describe('pharmacy search query', () => {
     expect(PharmacySearchSchema.safeParse(query).success).toBe(false);
   });
 });
+
+describe('duty search filters', () => {
+  it('accepts onDuty with a valid historical date', () => {
+    const result = PharmacySearchSchema.safeParse({ onDuty: 'true', dutyDate: '2026-02-28' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.onDuty).toBe(true);
+  });
+  it('rejects invalid calendar dates', () => {
+    expect(PharmacySearchSchema.safeParse({ onDuty: 'true', dutyDate: '2026-02-30' }).success).toBe(false);
+  });
+  it('rejects dutyDate without onDuty', () => {
+    expect(PharmacySearchSchema.safeParse({ dutyDate: '2026-02-01' }).success).toBe(false);
+  });
+  it('rejects contradictory duty and shift filters', () => {
+    expect(PharmacySearchSchema.safeParse({ onDuty: 'true', hasShift: 'false' }).success).toBe(false);
+  });
+});
