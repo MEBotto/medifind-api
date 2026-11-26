@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AppError } from '@/middleware/error.middleware';
-import { PublicCatalogQuerySchema, PublicProductIdSchema } from '../dtos/public-catalog.dto';
+import { PublicCatalogQuerySchema, PublicProductIdSchema, ProductPharmaciesQuerySchema } from '../dtos/public-catalog.dto';
 import { PublicCatalogService } from '../services/PublicCatalogService';
 
 const router = Router();
@@ -18,7 +18,9 @@ router.get('/:productId/pharmacies', async (req: Request, res: Response, next: N
   try {
     const parsed = PublicProductIdSchema.safeParse(req.params.productId);
     if (!parsed.success) throw new AppError(400, 'Invalid product id');
-    res.json(await service.pharmacies(parsed.data));
+    const filters = ProductPharmaciesQuerySchema.safeParse(req.query);
+    if (!filters.success) throw new AppError(400, 'Invalid pharmacy search parameters');
+    res.json(await service.pharmacies(parsed.data, filters.data));
   } catch (error) { next(error); }
 });
 
