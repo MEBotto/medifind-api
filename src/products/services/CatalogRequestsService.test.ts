@@ -17,7 +17,8 @@ const setup = (request: ReturnType<typeof makeRequest>) => {
     setLock: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(),
     getOne: jest.fn().mockResolvedValue(request),
   };
-  const repo = { createQueryBuilder: jest.fn(() => queryBuilder), save, findOne: jest.fn() };
+  const requesterQuery = { innerJoinAndSelect: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue({ requestedBy: { id: 'pharmacist' } }) };
+  const repo = { createQueryBuilder: jest.fn().mockReturnValueOnce(queryBuilder).mockReturnValue(requesterQuery), save, findOne: jest.fn() };
   const catalogQuery = {
     where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(),
     leftJoin: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(null),
@@ -26,7 +27,7 @@ const setup = (request: ReturnType<typeof makeRequest>) => {
   const manager = {
     getRepository: jest.fn((entity: { name: string }) =>
       entity.name === 'CatalogRequest' ? repo :
-      entity.name === 'AuditLog' ? { save: jest.fn() } : namedRepo),
+      entity.name === 'AuditLog' || entity.name === 'Notification' ? { save: jest.fn() } : namedRepo),
     query: jest.fn().mockResolvedValue([]),
     save: jest.fn(async (_entity: unknown, value: unknown) => value),
     create: jest.fn((_entity: unknown, value: unknown) => value),
