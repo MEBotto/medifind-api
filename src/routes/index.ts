@@ -18,6 +18,7 @@ import medicalInsuranceRoutes from '@/customers/routes/medicalinsurances.routes'
 import productRoutes from '@/products/routes/products.routes';
 import catalogRequestRoutes from '@/products/routes/catalog-requests.routes';
 import pharmacyInventoryRoutes from '@/products/routes/pharmacy-inventory.routes';
+import publicCatalogRoutes from '@/products/routes/public-catalog.routes';
 import categoryRoutes from '@/products/routes/categorys.routes';
 import laboratoryRoutes from '@/products/routes/laboratorys.routes';
 import favouritePharmacyRoutes from '@/users/routes/favouritepharmacys.routes';
@@ -46,6 +47,7 @@ router.use('/medicalinsurances', medicalInsuranceRoutes);
 router.use('/products', productRoutes);
 router.use('/catalog-requests', catalogRequestRoutes);
 router.use('/pharmacy-inventory', pharmacyInventoryRoutes);
+router.use('/catalog', publicCatalogRoutes);
 router.use('/categorys', categoryRoutes);
 router.use('/laboratorys', laboratoryRoutes);
 router.use('/favouritepharmacys', favouritePharmacyRoutes);
