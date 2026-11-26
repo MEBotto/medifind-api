@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import AppDataSource from '@/data-source';
 import { Shift } from '@/shifts/models/Shift';
+import { ShiftRotationRule } from '@/shifts/models/ShiftRotationRule';
+import { ShiftRotationRuleShift } from '@/shifts/models/ShiftRotationRuleShift';
 import { Pharmacy } from '@/pharmacies/models/Pharmacy';
 import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
 import PharmacysRepository from '@/pharmacies/repositories/PharmacysRepository';
@@ -39,10 +41,10 @@ suite('PostgreSQL integration: pharmacy duty and opening hours', () => {
     try {
       // Never clean a shared database; this suite is only allowed on disposable DBs.
       await AppDataSource.getRepository(Pharmacy).delete(ids);
-      const rules = await AppDataSource.getRepository('ShiftRotationRule').find({ where: { year: 2026 } });
+      const rules = await AppDataSource.getRepository(ShiftRotationRule).find({ where: { year: 2026 } });
       for (const rule of rules) {
-        await AppDataSource.getRepository('ShiftRotationRuleShift').delete({ rule: { id: rule.id } });
-        await AppDataSource.getRepository('ShiftRotationRule').remove(rule);
+        await AppDataSource.getRepository(ShiftRotationRuleShift).delete({ rule: { id: rule.id } });
+        await AppDataSource.getRepository(ShiftRotationRule).remove(rule);
       }
       await AppDataSource.getRepository(Shift).remove(shifts);
     } finally { await AppDataSource.destroy(); }
