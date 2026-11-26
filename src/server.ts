@@ -5,6 +5,7 @@ import app from './app';
 import AppDataSource, { initializeDatabase } from '@/data-source';
 import { logger } from '@/utils/logger';
 import { Server } from 'http';
+import { startNotificationStream, stopNotificationStream } from '@/notifications/realtime/notification-stream';
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,6 +16,7 @@ const startServer = async () => {
   try {
     getJwtSecret();
     await initializeDatabase();
+    await startNotificationStream();
 
     server = app.listen(PORT, () => {
       logger.info(`Servidor corriendo en el puerto ${PORT}`);
@@ -32,7 +34,8 @@ const gracefulShutdown = async () => {
   if (server) {
     server.close(() => {
       logger.info('Servidor HTTP cerrado');
-      AppDataSource.destroy()
+      stopNotificationStream()
+        .then(() => AppDataSource.destroy())
         .then(() => {
           logger.info('Conexión a la base de datos cerrada');
           process.exit(0);

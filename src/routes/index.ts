@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import userRoutes from '@/users/routes/users.routes';
+import notificationRoutes from '@/notifications/routes/notifications.routes';
 import authRoutes from '@/users/routes/auth.routes';
 import roleRoutes from '@/roles/routes/roles.routes';
 import permissionRoutes from '@/roles/routes/permissions.routes';
@@ -28,6 +29,7 @@ const router = Router();
 // Rutas principales
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/notifications', notificationRoutes);
 
 // Domain Routes
 router.use('/roles', roleRoutes);
