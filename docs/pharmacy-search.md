@@ -15,6 +15,7 @@ Endpoint autenticado: `GET /pharmacys` (se mantiene la ruta existente).
 | hasCoordinates | true/false | Con o sin geolocalización |
 | hasProducts | true/false | Con o sin productos **activos** |
 | favoritesOnly | true/false | Solo farmacias favoritas **activas del usuario autenticado** |
+| openNow | true/false | Abierta según horario semanal, 24 horas o asignación de guardia de hoy |
 | onDuty | true/false | Farmacias del grupo de guardia (o fuera de él) según calendario anual |
 | dutyDate | YYYY-MM-DD | Fecha local de Argentina para evaluar `onDuty`; por defecto hoy en `America/Argentina/Buenos_Aires` |
 | productName | string | Nombre de producto activo |
@@ -50,3 +51,19 @@ GET /pharmacys?onDuty=true&dutyDate=2026-02-01&page=1&limit=20
 El filtro se resuelve con la regla anual de mayor prioridad del calendario de turnos. `onDuty=true` devuelve farmacias asignadas al grupo de guardia; `onDuty=false` excluye ese grupo (incluye farmacias sin turno). Se combina con todos los demás filtros y la paginación existente.
 
 La fecha se interpreta en la zona `America/Argentina/Buenos_Aires`. Sin `dutyDate`, se utiliza el día actual de esa zona, no el del servidor. `dutyDate` requiere `onDuty`. Si no hay calendario configurado, la API devuelve 404; reglas empatadas en prioridad devuelven 409. El sistema calcula guardias **por día**, todavía no contempla la hora exacta de relevo. No confundir con `openNow`, que depende de horarios comerciales aún pendientes de modelar.
+
+## Apertura en este momento
+
+```http
+GET /pharmacys?openNow=true&onDuty=true
+```
+
+`openNow` considera abierta una farmacia cuando `open24Hours=true`, cuando una franja de `weeklyHours` coincide con la hora actual en `America/Argentina/Buenos_Aires`, **o** cuando pertenece al grupo de guardia de hoy. Soporta múltiples franjas por día y cierres después de medianoche. `openNow=false` aplica el complemento de ese criterio. No se permite combinar `openNow` con `dutyDate` histórico.
+
+La farmacia puede actualizar `weeklyHours` y `open24Hours` mediante el endpoint de edición existente (actualmente restringido a ADMIN). `weeklyHours` usa días ISO (lunes=1, domingo=7), `opensAt` y `closesAt` en formato HH:mm. Ejemplo:
+
+```json
+{ "weeklyHours": [{ "dayOfWeek": 1, "opensAt": "09:00", "closesAt": "13:00" }, { "dayOfWeek": 1, "opensAt": "16:00", "closesAt": "20:00" }], "open24Hours": false }
+```
+
+La migración `1790000000000-AddPharmacyWeeklyHours` incorpora los campos sin convertir automáticamente los horarios antiguos `openingDays`, `openingTime` y `closingTime`. **Es necesario migrar o cargar los horarios reales antes de confiar en openNow**. Todavía no se contemplan excepciones por feriados ni la hora exacta del relevo de guardia; por ahora el grupo del calendario se considera disponible durante todo el día local.
