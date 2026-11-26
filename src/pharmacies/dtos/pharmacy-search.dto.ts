@@ -16,6 +16,7 @@ export const PharmacySearchSchema = z.object({
   hasProducts: optionalBoolean.optional(),
   favoritesOnly: optionalBoolean.optional(),
   onDuty: optionalBoolean.optional(),
+  openNow: optionalBoolean.optional(),
   dutyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD').refine(value => {
     const [y, m, d] = value.split('-').map(Number);
     const date = new Date(Date.UTC(y, m - 1, d));
