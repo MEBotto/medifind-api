@@ -140,3 +140,41 @@ jobs:
           test "$(query "SELECT count(*) FROM permissions WHERE code IN ('USERS_MANAGE','ROLES_MANAGE','PHARMACIES_MANAGE','PRODUCTS_MANAGE')")" = 4
           test "$(query "SELECT count(*) FROM users WHERE username = 'initial_admin'")" = 1
           test "$(query "SELECT count(*) FROM role_permission")" = 5
+
+  pharmacy-integration:
+    name: Pharmacy PostgreSQL + HTTP integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medifind_pharmacy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d medifind_pharmacy_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DB_INTEGRATION_ISOLATED: 'true'
+      RUN_DB_INTEGRATION: 'true'
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: medifind_pharmacy_ci
+      JWT_SECRET: ci-only-test-secret-not-for-production-2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Test pharmacy calendar, HTTP permissions and openNow on PostgreSQL
+        run: npm run test:integration
