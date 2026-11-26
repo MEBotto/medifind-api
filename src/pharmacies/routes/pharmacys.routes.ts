@@ -1,4 +1,10 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
+import { PharmacySearchSchema } from '../dtos/pharmacy-search.dto';
+import { activeDutyDate } from '@/shifts/utils/active-duty-date';
+import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
+import { distanceKm, localParts, nextRegularOpening, nextRegularClosing } from '../utils/availability';
+import { isOpenAt } from '../utils/opening-hours';
 import { AuthRequest, requirePharmacyAccess } from '@/middleware/auth.middleware';
 import AppDataSource from '@/data-source';
 import { Pharmacy } from '../models/Pharmacy';
@@ -20,6 +26,67 @@ const controller = new PharmacysController(service);
 
 router.post('/', authenticateJWT, requireRole('ADMIN'), validate(CreatePharmacySchema), controller.create);
 router.get('/', authenticateJWT, controller.getAll);
+
+const NearbySchema = z.object({
+  lat: z.coerce.number().finite().min(-90).max(90),
+  lng: z.coerce.number().finite().min(-180).max(180),
+  radiusKm: z.coerce.number().positive().max(500).default(10),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+}).strict();
+
+// Route before /:id to prevent "nearby" from being interpreted as a pharmacy ID.
+router.get('/nearby', authenticateJWT, async (req: AuthRequest, res: Response) => {
+  const parsed = NearbySchema.safeParse(req.query);
+  if (!parsed.success) {
+    sendError(res, 'Parámetros inválidos', 400, parsed.error.issues.map(issue => ({
+      path: issue.path.join('.'), message: issue.message,
+    })));
+    return;
+  }
+  if (!req.user) { sendError(res, 'Authentication required', 401); return; }
+  try {
+    const { lat, lng, radiusKm, page, limit } = parsed.data;
+    const now = new Date();
+    const dutyDate = activeDutyDate(now);
+    const [year, month, day] = dutyDate.split('-').map(Number);
+    let activeShiftId: string | undefined;
+    try {
+      const calendar = await new ShiftCalendarService().getCalendar(year, month);
+      activeShiftId = calendar.days[day - 1]?.shiftId;
+    } catch (error) {
+      // Availability can still be shown using regular opening hours when no calendar exists.
+      if (!(error instanceof Error && 'statusCode' in error && error.statusCode === 404)) throw error;
+    }
+    const filters = PharmacySearchSchema.parse({
+      lat, lng, radiusKm, orderBy: 'distance', page, limit,
+    });
+    const result = await service.getAllPharmacys(filters, req.user.id);
+    const local = localParts(now);
+    const data = result.data.map(pharmacy => {
+      const onDuty = Boolean(activeShiftId && pharmacy.shift?.id === activeShiftId);
+      const regularlyOpen = pharmacy.open24Hours ||
+        isOpenAt(pharmacy.weeklyHours ?? [], local.dayOfWeek, local.time);
+      const openNow = onDuty || regularlyOpen;
+      const distance = distanceKm(lat, lng, Number(pharmacy.lat), Number(pharmacy.lng));
+      return {
+        id: pharmacy.id, name: pharmacy.name, address: pharmacy.adress,
+        lat: Number(pharmacy.lat), lng: Number(pharmacy.lng),
+        distanceKm: Math.round(distance * 100) / 100,
+        onDuty, openNow, status: onDuty ? 'ON_DUTY' : openNow ? 'OPEN' : 'CLOSED',
+        open24Hours: pharmacy.open24Hours,
+        weeklyHours: pharmacy.weeklyHours,
+        nextOpeningAt: openNow ? null : nextRegularOpening(pharmacy, now),
+        nextClosingAt: onDuty || pharmacy.open24Hours || !regularlyOpen ? null : nextRegularClosing(pharmacy, now),
+      };
+    });
+    sendSuccess(res, { ...result, data, checkedAt: now.toISOString(), timeZone: 'America/Argentina/Buenos_Aires' });
+  } catch (error) {
+    logger.error('Error buscando farmacias cercanas:', error);
+    sendError(res, 'Error al buscar farmacias cercanas', 500);
+  }
+});
+
 router.put('/:pharmacyId/hours', authenticateJWT, requirePharmacyAccess, validate(PharmacyHoursSchema),
   async (req: AuthRequest, res: Response) => {
     try {
