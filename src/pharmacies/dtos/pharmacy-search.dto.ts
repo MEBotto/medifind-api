@@ -15,6 +15,12 @@ export const PharmacySearchSchema = z.object({
   hasCoordinates: optionalBoolean.optional(),
   hasProducts: optionalBoolean.optional(),
   favoritesOnly: optionalBoolean.optional(),
+  onDuty: optionalBoolean.optional(),
+  dutyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD').refine(value => {
+    const [y, m, d] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() + 1 === m && date.getUTCDate() === d;
+  }, 'Fecha inválida').optional(),
   productName: optionalText.optional(),
   idCategory: uuid.optional(),
   idLaboratory: uuid.optional(),
@@ -40,6 +46,12 @@ export const PharmacySearchSchema = z.object({
   }
   if (data.hasShift === false && (data.idShift || data.shiftCode)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hasShift=false cannot be combined with shift filters', path: ['hasShift'] });
+  }
+  if (data.dutyDate && data.onDuty === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'dutyDate requires onDuty', path: ['dutyDate'] });
+  }
+  if (data.onDuty === true && data.hasShift === false) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'onDuty=true requires a shift', path: ['hasShift'] });
   }
   if (data.orderBy === 'distance' && data.lat === undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'distance ordering requires lat and lng', path: ['orderBy'] });
