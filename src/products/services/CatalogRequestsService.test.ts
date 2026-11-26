@@ -24,17 +24,21 @@ const setup = (request: ReturnType<typeof makeRequest>) => {
     leftJoin: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(null),
   };
   const namedRepo = { createQueryBuilder: jest.fn(() => catalogQuery) };
+  const notificationSave = jest.fn(async (value: Record<string, unknown>) => ({
+    ...value, id: 'notification-1',
+  }));
   const manager = {
     getRepository: jest.fn((entity: { name: string }) =>
       entity.name === 'CatalogRequest' ? repo :
-      entity.name === 'AuditLog' || entity.name === 'Notification' ? { save: jest.fn() } : namedRepo),
+      entity.name === 'AuditLog' ? { save: jest.fn() } :
+      entity.name === 'Notification' ? { save: notificationSave } : namedRepo),
     query: jest.fn().mockResolvedValue([]),
     save: jest.fn(async (_entity: unknown, value: unknown) => value),
     create: jest.fn((_entity: unknown, value: unknown) => value),
     findOneBy: jest.fn().mockResolvedValue(null),
   };
   (AppDataSource.transaction as jest.Mock).mockImplementation(async fn => fn(manager));
-  return { manager, repo, queryBuilder, catalogQuery };
+  return { manager, repo, queryBuilder, catalogQuery, notificationSave };
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -84,11 +88,16 @@ describe('CatalogRequestsService review authorization and consistency', () => {
   });
 
   it('records a rejection reason without creating a catalog entity', async () => {
-    const { repo, manager } = setup(makeRequest());
+    const { repo, manager, notificationSave } = setup(makeRequest());
     const result = await service.review('request-1', { decision: 'REJECT', reason: 'Duplicate' }, admin);
     expect(result.status).toBe(CatalogRequestStatus.REJECTED);
     expect(result.rejectionReason).toBe('Duplicate');
     expect(repo.save).toHaveBeenCalled();
-    expect(manager.query).toHaveBeenCalledWith('SELECT pg_notify($1, $2)', expect.any(Array));
+    expect(notificationSave).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'pharmacist', type: 'CATALOG_REQUEST_REJECTED', catalogRequestId: 'request-1',
+    }));
+    expect(manager.query).toHaveBeenCalledWith('SELECT pg_notify($1, $2)', [
+      'medifind_notifications', JSON.stringify({ id: 'notification-1', userId: 'pharmacist' }),
+    ]);
   });
 });
