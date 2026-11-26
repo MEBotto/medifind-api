@@ -28,7 +28,7 @@ Carga 12 grupos A–L y una farmacia ficticia por grupo. Cada una tiene horarios
 NODE_ENV=test DB_INTEGRATION_ISOLATED=true RUN_DB_INTEGRATION=true npm run test:integration
 ```
 
-La base debe estar vacía y ser exclusivamente para esta prueba. `NODE_ENV=test` habilita `synchronize` en TypeORM, por lo que **no debe usarse sobre una base compartida**. La suite crea grupos, farmacias y reglas para 2026, verifica persistencia y filtrado, y elimina sus fixtures. Sin las tres variables, la suite no ejecuta conexiones ni mutaciones.
+La base debe estar vacía y ser exclusivamente para esta prueba. `NODE_ENV=test` habilita `synchronize` en TypeORM, por lo que **no debe usarse sobre una base compartida**. La suite crea grupos, farmacias, usuarios y reglas de prueba, verifica persistencia, filtros, permisos HTTP y elimina sus fixtures.\n\nEn CI, el job **Pharmacy PostgreSQL + HTTP integration** inicia PostgreSQL 16 aislado y ejecuta ambas suites automáticamente. Sin las tres variables, la suite no ejecuta conexiones ni mutaciones.
 
 ## 4. Verificaciones manuales
 
@@ -38,4 +38,4 @@ La base debe estar vacía y ser exclusivamente para esta prueba. `NODE_ENV=test`
 - `GET /api/pharmacys?openNow=true` debe incluir el grupo de guardia vigente entre las 08:00 y las 08:00 del día siguiente, y farmacias abiertas por su horario normal.
 - Verificar 07:59/08:00, medianoche, cambios de mes y año; los tests puros en `src/shifts/utils/active-duty-date.test.ts` cubren los límites de tiempo.
 
-**Pendiente:** automatizar tests HTTP autenticados de permisos y pruebas de `openNow` con reloj controlado en PostgreSQL. Un CI verde por sí solo no demuestra esos escenarios.
+**Cobertura incorporada en PR #17:** autenticación JWT, permisos del propietario, rechazo a otro farmacéutico, administración, validación de horarios y `openNow` para farmacia 24 horas vs cerrada. **Pendiente:** casos horarios de `openNow` con reloj controlado (medianoche, relevo 08:00) y guardia efectiva en SQL. Un CI verde no demuestra esos escenarios pendientes.
