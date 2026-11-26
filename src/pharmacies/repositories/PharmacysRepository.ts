@@ -1,4 +1,5 @@
 import { Repository, DeepPartial } from 'typeorm';
+import { Shift } from '@/shifts/models/Shift';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
@@ -12,11 +13,21 @@ class PharmacysRepository {
     this.ormRepository = AppDataSource.getRepository(Pharmacy);
   }
 
+  private async resolveShift(idShift: string | null | undefined): Promise<Shift | null> {
+    if (!idShift) return null;
+    const shift = await AppDataSource.getRepository(Shift).findOneBy({ id: idShift });
+    if (!shift) throw new AppError(400, 'El turno indicado no existe');
+    return shift;
+  }
+
   async create(data: CreatePharmacyDTO): Promise<Pharmacy> {
     try {
-      const entity = this.ormRepository.create(data as unknown as DeepPartial<Pharmacy>);
+      const { idShift, ...fields } = data;
+      const entity = this.ormRepository.create(fields as DeepPartial<Pharmacy>);
+      if (idShift !== undefined) entity.shift = await this.resolveShift(idShift);
       return await this.ormRepository.save(entity);
     } catch (error) {
+      if (error instanceof AppError) throw error;
       logger.error('Error al crear Pharmacy:', error);
       throw new AppError(500, 'Error al crear la entidad');
     }
@@ -24,7 +35,7 @@ class PharmacysRepository {
 
   async findById(id: string): Promise<Pharmacy | null> {
     try {
-      return await this.ormRepository.findOne({ where: { id } as any });
+      return await this.ormRepository.findOne({ where: { id }, relations: { shift: true } });
     } catch (error) {
       logger.error(`Error al buscar Pharmacy ${id}:`, error);
       throw new AppError(500, 'Error al buscar la entidad');
@@ -33,7 +44,7 @@ class PharmacysRepository {
 
   async findAll(): Promise<Pharmacy[]> {
     try {
-      return await this.ormRepository.find();
+      return await this.ormRepository.find({ relations: { shift: true } });
     } catch (error) {
       logger.error('Error al buscar pharmacys:', error);
       throw new AppError(500, 'Error al listar las entidades');
@@ -47,7 +58,9 @@ class PharmacysRepository {
         throw new AppError(404, 'Pharmacy no encontrado');
       }
 
-      Object.assign(entity, data);
+      const { idShift, ...fields } = data;
+      Object.assign(entity, fields);
+      if (idShift !== undefined) entity.shift = await this.resolveShift(idShift);
       return await this.ormRepository.save(entity);
     } catch (error) {
       if (error instanceof AppError) throw error;

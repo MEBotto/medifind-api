@@ -32,9 +32,9 @@ export class Pharmacy {
   @Column({ type: 'time', nullable: true })
   closingTime: string;
 
-  @ManyToOne(() => Shift, shift => shift.pharmacies)
+  @ManyToOne(() => Shift, shift => shift.pharmacies, { nullable: true })
   @JoinColumn({ name: 'idShift' })
-  shift: Shift;
+  shift: Shift | null;
 
   @OneToMany(() => Product, product => product.pharmacy)
   products: Product[];
