@@ -23,6 +23,12 @@ export class Pharmacy {
   @Column({ type: 'bigint', nullable: true })
   phone: string;
 
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  weeklyHours: { dayOfWeek: number; opensAt: string; closesAt: string }[];
+
+  @Column({ type: 'boolean', default: false })
+  open24Hours: boolean;
+
   @Column({ nullable: true })
   openingDays: string;
 
