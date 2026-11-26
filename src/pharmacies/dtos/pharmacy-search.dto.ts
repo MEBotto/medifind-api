@@ -31,6 +31,15 @@ export const PharmacySearchSchema = z.object({
   if (data.radiusKm !== undefined && data.lat === undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'radiusKm requires lat and lng', path: ['radiusKm'] });
   }
+  if (data.hasProducts === false && (data.productName || data.idCategory || data.idLaboratory)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hasProducts=false cannot be combined with product filters', path: ['hasProducts'] });
+  }
+  if (data.hasCoordinates === false && data.lat !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hasCoordinates=false cannot be combined with coordinates', path: ['hasCoordinates'] });
+  }
+  if (data.hasShift === false && (data.idShift || data.shiftCode)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hasShift=false cannot be combined with shift filters', path: ['hasShift'] });
+  }
   if (data.orderBy === 'distance' && data.lat === undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'distance ordering requires lat and lng', path: ['orderBy'] });
   }
