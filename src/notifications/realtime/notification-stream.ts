@@ -4,7 +4,7 @@ import AppDataSource from '@/data-source';
 import { Notification } from '../models/Notification';
 import { logger } from '@/utils/logger';
 
-type StreamClient = { userId: string; response: Response; heartbeat: NodeJS.Timeout };
+type StreamClient = { userId: string; response: Response; heartbeat: NodeJS.Timeout; expiry: NodeJS.Timeout };
 const subscribers = new Map<string, Set<StreamClient>>();
 let listener: Client | undefined;
 let reconnectTimer: NodeJS.Timeout | undefined;
@@ -20,6 +20,7 @@ export function subscribeNotifications(userId: string, response: Response): () =
   subscribers.set(userId, set);
   return () => {
     clearInterval(client.heartbeat);
+    clearTimeout(client.expiry);
     set.delete(client);
     if (!set.size) subscribers.delete(userId);
   };
@@ -92,6 +93,7 @@ export async function stopNotificationStream(): Promise<void> {
   reconnectTimer = undefined;
   for (const clients of subscribers.values()) for (const client of clients) {
     clearInterval(client.heartbeat);
+    clearTimeout(client.expiry);
     client.response.end();
   }
   subscribers.clear();
