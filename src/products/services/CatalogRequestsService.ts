@@ -9,6 +9,7 @@ import { CatalogProduct } from '../models/CatalogProduct';
 import { CatalogRequest, CatalogRequestStatus, CatalogRequestType } from '../models/CatalogRequest';
 import { CreateCatalogRequestDTO, ReviewCatalogRequestDTO } from '../dtos/catalog-request.dto';
 import { ProductActor } from './ProductsService';
+import { CreateCatalogRequestSchema } from '../dtos/catalog-request.dto';
 
 type ProductPayload = {
   name: string; description?: string; barcode?: string; presentation?: string;
@@ -72,11 +73,16 @@ export class CatalogRequestsService {
         .getOne();
       if (!request) throw new AppError(404, 'Request not found');
       if (request.status !== CatalogRequestStatus.PENDING) throw new AppError(409, 'Request already reviewed');
-      const payload = request.payload as Record<string, unknown>;
+      // Validate persisted JSON again before using it in an administrative action.
+      const validated = CreateCatalogRequestSchema.safeParse({ type: request.type, payload: request.payload });
+      if (!validated.success) throw new AppError(400, 'Invalid catalog request payload');
+      const payload = validated.data.payload as Record<string, unknown>;
       const name = String(payload.name ?? '').trim();
       if (!name) throw new AppError(400, 'Request has no name');
 
       if (data.decision === 'APPROVE') {
+        // Serialize catalog creation across distinct requests to avoid race duplicates.
+        await manager.query('SELECT pg_advisory_xact_lock($1)', [74321001]);
         if (request.type === CatalogRequestType.LABORATORY) {
           const exists = await manager.getRepository(Laboratory)
             .createQueryBuilder('laboratory').where('LOWER(TRIM(laboratory.name)) = LOWER(:name)', { name }).getOne();
@@ -89,6 +95,13 @@ export class CatalogRequestsService {
           await manager.save(Category, manager.create(Category, { name }));
         } else {
           const productData = payload as ProductPayload;
+          // Match normalized identity even when no barcode is supplied.
+          const identity = await manager.getRepository(CatalogProduct).createQueryBuilder('product')
+            .leftJoin('product.laboratory', 'laboratory')
+            .where('LOWER(TRIM(product.name)) = LOWER(:name)', { name })
+            .andWhere('LOWER(COALESCE(product.presentation, \'\')) = LOWER(:presentation)', { presentation: productData.presentation ?? '' })
+            .andWhere('product.dose IS NOT DISTINCT FROM :dose', { dose: productData.dose ?? null })
+            .andWhere('LOWER(COALESCE(product.unit, \'\')) = LOWER(:unit)', { unit: productData.unit ?? '' });
           if (productData.barcode) {
             const exists = await manager.findOneBy(CatalogProduct, { barcode: productData.barcode });
             if (exists) throw new AppError(409, 'Barcode already exists');
@@ -112,6 +125,8 @@ export class CatalogRequestsService {
           if (productData.categoryId && !await manager.findOneBy(Category, { id: productData.categoryId })) {
             throw new AppError(400, 'Category not found');
           }
+          identity.andWhere('product.laboratoryId IS NOT DISTINCT FROM :labId', { labId: laboratoryId ?? null });
+          if (await identity.getOne()) throw new AppError(409, 'Catalog product already exists');
           await manager.save(CatalogProduct, manager.create(CatalogProduct, {
             name: productData.name, description: productData.description ?? null,
             barcode: productData.barcode ?? null, presentation: productData.presentation ?? null,
