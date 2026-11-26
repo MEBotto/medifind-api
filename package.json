@@ -17,6 +17,8 @@
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
+    "seed:pharmacy:demo": "ts-node -r tsconfig-paths/register src/scripts/seed-pharmacy-demo.ts",
+    "test:integration": "jest --runInBand --runTestsByPath src/pharmacies/pharmacy-db.integration.test.ts",
     "seed:roles": "ts-node -r tsconfig-paths/register src/scripts/seed-roles.ts",
     "bootstrap:admin": "ts-node -r tsconfig-paths/register src/scripts/bootstrap-admin.ts",
     "db:setup:prod": "ts-node -r tsconfig-paths/register src/scripts/setup-production.ts"
