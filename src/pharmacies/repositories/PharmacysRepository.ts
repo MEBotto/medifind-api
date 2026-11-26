@@ -47,8 +47,52 @@ class PharmacysRepository {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
+      // Escape LIKE wildcards so user input is treated as literal text.
+      const escapeLike = (value: string) => value.replace(/[\\%_]/g, '\\$&');
       if (filters.search) {
-        qb.andWhere('pharmacy.name ILIKE :search', { search: `%${filters.search}%` });
+        qb.andWhere('(pharmacy.name ILIKE :search OR pharmacy.adress ILIKE :search)', {
+          search: `%${escapeLike(filters.search)}%`,
+        });
+      }
+      if (filters.name) {
+        qb.andWhere('pharmacy.name ILIKE :name', { name: `%${escapeLike(filters.name)}%` });
+      }
+      if (filters.address) {
+        qb.andWhere('pharmacy.adress ILIKE :address', { address: `%${escapeLike(filters.address)}%` });
+      }
+      if (filters.idShift) qb.andWhere('shift.id = :idShift', { idShift: filters.idShift });
+      if (filters.shiftCode) qb.andWhere('shift.code = :shiftCode', { shiftCode: filters.shiftCode });
+      if (filters.hasShift !== undefined) {
+        qb.andWhere(filters.hasShift ? 'shift.id IS NOT NULL' : 'shift.id IS NULL');
+      }
+      if (filters.hasCoordinates !== undefined) {
+        qb.andWhere(filters.hasCoordinates
+          ? 'pharmacy.lat IS NOT NULL AND pharmacy.lng IS NOT NULL'
+          : '(pharmacy.lat IS NULL OR pharmacy.lng IS NULL)');
+      }
+      const hasProductFilter = filters.productName !== undefined ||
+        filters.idCategory !== undefined || filters.idLaboratory !== undefined;
+      if (hasProductFilter || filters.hasProducts !== undefined) {
+        // EXISTS avoids duplicate pharmacy rows and keeps pagination/count correct.
+        const subquery = qb.subQuery()
+          .select('1')
+          .from('products', 'product')
+          .where('product."idPharmacy" = pharmacy.id')
+          .andWhere('product.active = true');
+        if (filters.productName) {
+          subquery.andWhere('product.name ILIKE :productName');
+          qb.setParameter('productName', `%${escapeLike(filters.productName)}%`);
+        }
+        if (filters.idCategory) {
+          subquery.andWhere('product."idCategory" = :idCategory');
+          qb.setParameter('idCategory', filters.idCategory);
+        }
+        if (filters.idLaboratory) {
+          subquery.andWhere('product."idLabo" = :idLaboratory');
+          qb.setParameter('idLaboratory', filters.idLaboratory);
+        }
+        const expression = `EXISTS ${subquery.getQuery()}`;
+        qb.andWhere(filters.hasProducts === false ? `NOT ${expression}` : expression);
       }
       if (filters.lat !== undefined && filters.lng !== undefined) {
         // Great-circle distance in km; clamp acos input for floating-point safety.
@@ -66,9 +110,9 @@ class PharmacysRepository {
           qb.addSelect(distance, 'distance_km').orderBy('distance_km', filters.order);
         }
       }
-      if (filters.orderBy === 'name') {
-        qb.orderBy('pharmacy.name', filters.order, 'NULLS LAST');
-      }
+      if (filters.orderBy === 'name') qb.orderBy('pharmacy.name', filters.order, 'NULLS LAST');
+      if (filters.orderBy === 'address') qb.orderBy('pharmacy.adress', filters.order, 'NULLS LAST');
+      if (filters.orderBy === 'id') qb.orderBy('pharmacy.id', filters.order);
       qb.addOrderBy('pharmacy.id', 'ASC');
       const total = await qb.getCount();
       const data = await qb.skip((filters.page - 1) * filters.limit)
