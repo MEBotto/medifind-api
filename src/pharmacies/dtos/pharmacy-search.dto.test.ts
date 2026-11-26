@@ -23,6 +23,12 @@ describe('pharmacy search query', () => {
     expect(result).toMatchObject({ hasShift: true, hasProducts: true, hasCoordinates: false, orderBy: 'address' });
   });
 
+  it('supports favorites-only filtering without accepting arbitrary user IDs', () => {
+    expect(PharmacySearchSchema.parse({ favoritesOnly: 'true' }).favoritesOnly).toBe(true);
+    expect(PharmacySearchSchema.parse({ favoritesOnly: 'false' }).favoritesOnly).toBe(false);
+    expect(PharmacySearchSchema.safeParse({ favoritesOnly: 'true', userId: 'another-user' }).success).toBe(false);
+  });
+
   it.each([
     { page: '0' }, { limit: '101' }, { lat: '90.1', lng: '0' },
     { lat: '-34' }, { lng: '-58' }, { radiusKm: '5' },
@@ -32,6 +38,7 @@ describe('pharmacy search query', () => {
     { hasShift: 'false', shiftCode: 'A' },
     { hasCoordinates: 'false', lat: '1', lng: '2' },
     { hasProducts: 'yes' },
+    { favoritesOnly: 'yes' },
     { unexpected: 'value' },
   ])('rejects invalid query %p', query => {
     expect(PharmacySearchSchema.safeParse(query).success).toBe(false);
