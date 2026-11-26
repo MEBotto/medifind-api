@@ -1,6 +1,7 @@
 import { Repository, DeepPartial } from 'typeorm';
 import { Shift } from '@/shifts/models/Shift';
 import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
+import { activeDutyDate } from '@/shifts/utils/active-duty-date';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
@@ -49,12 +50,9 @@ class PharmacysRepository {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
       if (filters.onDuty !== undefined || filters.openNow !== undefined) {
-        // Use the pharmacy service timezone, not the server timezone.
-        const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).formatToParts(new Date());
-        const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
-        const date = filters.dutyDate ?? `${today.year}-${today.month}-${today.day}`;
+        // Historical dutyDate denotes the guard beginning at 08:00 on that date.
+        // Real-time filters use the guard active now, which may be yesterday's group.
+        const date = filters.dutyDate ?? activeDutyDate(new Date());
         const [year, month, day] = date.split('-').map(Number);
         let dutyShiftId: string | undefined;
         try {
