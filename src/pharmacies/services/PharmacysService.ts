@@ -1,5 +1,6 @@
 import PharmacysRepository from '../repositories/PharmacysRepository';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
+import { PharmacySearchDTO } from '../dtos/pharmacy-search.dto';
 import { Pharmacy } from '../models/Pharmacy';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
@@ -35,9 +36,9 @@ class PharmacysService {
     }
   }
 
-  async getAllPharmacys(): Promise<Pharmacy[]> {
+  async getAllPharmacys(filters: PharmacySearchDTO, userId: string): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
-      return await this.pharmacysRepository.findAll();
+      return await this.pharmacysRepository.findAll(filters, userId);
     } catch (error) {
       logger.error('Error al listar Pharmacys:', error);
       throw new AppError(500, 'Error al listar las entidades');

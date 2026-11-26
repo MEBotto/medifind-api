@@ -3,6 +3,7 @@ import { Shift } from '@/shifts/models/Shift';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
+import { PharmacySearchDTO } from '../dtos/pharmacy-search.dto';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 
@@ -42,12 +43,94 @@ class PharmacysRepository {
     }
   }
 
-  async findAll(): Promise<Pharmacy[]> {
+  async findAll(filters: PharmacySearchDTO, userId: string): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
-      return await this.ormRepository.find({ relations: { shift: true } });
+      const qb = this.ormRepository.createQueryBuilder('pharmacy')
+        .leftJoinAndSelect('pharmacy.shift', 'shift');
+      if (filters.favoritesOnly === true) {
+        qb.andWhere(`EXISTS (
+          SELECT 1 FROM favourite_pharmacies favorite
+          WHERE favorite."idPharmacy" = pharmacy.id
+            AND favorite."idUser" = :favoriteUserId
+            AND favorite.active = true
+        )`, { favoriteUserId: userId });
+      }
+      // Escape LIKE wildcards so user input is treated as literal text.
+      const escapeLike = (value: string) => value.replace(/[\\%_]/g, '\\$&');
+      if (filters.search) {
+        qb.andWhere('(pharmacy.name ILIKE :search OR pharmacy.adress ILIKE :search)', {
+          search: `%${escapeLike(filters.search)}%`,
+        });
+      }
+      if (filters.name) {
+        qb.andWhere('pharmacy.name ILIKE :name', { name: `%${escapeLike(filters.name)}%` });
+      }
+      if (filters.address) {
+        qb.andWhere('pharmacy.adress ILIKE :address', { address: `%${escapeLike(filters.address)}%` });
+      }
+      if (filters.idShift) qb.andWhere('shift.id = :idShift', { idShift: filters.idShift });
+      if (filters.shiftCode) qb.andWhere('shift.code = :shiftCode', { shiftCode: filters.shiftCode });
+      if (filters.hasShift !== undefined) {
+        qb.andWhere(filters.hasShift ? 'shift.id IS NOT NULL' : 'shift.id IS NULL');
+      }
+      if (filters.hasCoordinates !== undefined) {
+        qb.andWhere(filters.hasCoordinates
+          ? 'pharmacy.lat IS NOT NULL AND pharmacy.lng IS NOT NULL'
+          : '(pharmacy.lat IS NULL OR pharmacy.lng IS NULL)');
+      }
+      const hasProductFilter = filters.productName !== undefined ||
+        filters.idCategory !== undefined || filters.idLaboratory !== undefined;
+      if (hasProductFilter || filters.hasProducts !== undefined) {
+        // EXISTS avoids duplicate pharmacy rows and keeps pagination/count correct.
+        const subquery = qb.subQuery()
+          .select('1')
+          .from('products', 'product')
+          .where('product."idPharmacy" = pharmacy.id')
+          .andWhere('product.active = true');
+        if (filters.productName) {
+          subquery.andWhere('product.name ILIKE :productName');
+          qb.setParameter('productName', `%${escapeLike(filters.productName)}%`);
+        }
+        if (filters.idCategory) {
+          subquery.andWhere('product."idCategory" = :idCategory');
+          qb.setParameter('idCategory', filters.idCategory);
+        }
+        if (filters.idLaboratory) {
+          subquery.andWhere('product."idLabo" = :idLaboratory');
+          qb.setParameter('idLaboratory', filters.idLaboratory);
+        }
+        const expression = `EXISTS ${subquery.getQuery()}`;
+        qb.andWhere(filters.hasProducts === false ? `NOT ${expression}` : expression);
+      }
+      if (filters.lat !== undefined && filters.lng !== undefined) {
+        // Great-circle distance in km; clamp acos input for floating-point safety.
+        const distance = `(6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians(:lat)) * cos(radians(pharmacy.lat)) *
+          cos(radians(pharmacy.lng) - radians(:lng)) +
+          sin(radians(:lat)) * sin(radians(pharmacy.lat))
+        ))))`;
+        qb.andWhere('pharmacy.lat IS NOT NULL AND pharmacy.lng IS NOT NULL')
+          .setParameters({ lat: filters.lat, lng: filters.lng });
+        if (filters.radiusKm !== undefined) {
+          qb.andWhere(`${distance} <= :radiusKm`, { radiusKm: filters.radiusKm });
+        }
+        if (filters.orderBy === 'distance') {
+          qb.addSelect(distance, 'distance_km').orderBy('distance_km', filters.order);
+        }
+      }
+      if (filters.orderBy === 'name') qb.orderBy('pharmacy.name', filters.order, 'NULLS LAST');
+      if (filters.orderBy === 'address') qb.orderBy('pharmacy.adress', filters.order, 'NULLS LAST');
+      if (filters.orderBy === 'id') qb.orderBy('pharmacy.id', filters.order);
+      qb.addOrderBy('pharmacy.id', 'ASC');
+      const total = await qb.getCount();
+      const data = await qb.skip((filters.page - 1) * filters.limit)
+        .take(filters.limit).getMany();
+      return { data, total, page: filters.page, limit: filters.limit,
+        totalPages: Math.ceil(total / filters.limit) };
     } catch (error) {
-      logger.error('Error al buscar pharmacys:', error);
-      throw new AppError(500, 'Error al listar las entidades');
+      if (error instanceof AppError) throw error;
+      logger.error('Error al buscar farmacias:', error);
+      throw new AppError(500, 'Error al listar las farmacias');
     }
   }
 
