@@ -43,10 +43,18 @@ class PharmacysRepository {
     }
   }
 
-  async findAll(filters: PharmacySearchDTO): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
+  async findAll(filters: PharmacySearchDTO, userId: string): Promise<{ data: Pharmacy[]; total: number; page: number; limit: number; totalPages: number }> {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
+      if (filters.favoritesOnly === true) {
+        qb.andWhere(`EXISTS (
+          SELECT 1 FROM favourite_pharmacies favorite
+          WHERE favorite."idPharmacy" = pharmacy.id
+            AND favorite."idUser" = :favoriteUserId
+            AND favorite.active = true
+        )`, { favoriteUserId: userId });
+      }
       // Escape LIKE wildcards so user input is treated as literal text.
       const escapeLike = (value: string) => value.replace(/[\\%_]/g, '\\$&');
       if (filters.search) {
