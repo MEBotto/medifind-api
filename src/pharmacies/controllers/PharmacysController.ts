@@ -43,7 +43,7 @@ class PharmacysController {
     try {
       const parsed = PharmacySearchSchema.safeParse(req.query);
       if (!parsed.success) {
-        sendError(res, 'Parámetros de búsqueda inválidos', 400, parsed.error.flatten());
+        sendError(res, 'Parámetros de búsqueda inválidos', 400, parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })));
         return;
       }
       const result = await this.pharmacysService.getAllPharmacys(parsed.data);
