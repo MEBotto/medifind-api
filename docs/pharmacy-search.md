@@ -58,12 +58,12 @@ La fecha se interpreta en la zona `America/Argentina/Buenos_Aires`. Sin `dutyDat
 GET /pharmacys?openNow=true&onDuty=true
 ```
 
-`openNow` considera abierta una farmacia cuando `open24Hours=true`, cuando una franja de `weeklyHours` coincide con la hora actual en `America/Argentina/Buenos_Aires`, **o** cuando pertenece al grupo de guardia de hoy. Soporta múltiples franjas por día y cierres después de medianoche. `openNow=false` aplica el complemento de ese criterio. No se permite combinar `openNow` con `dutyDate` histórico.
+`openNow` considera abierta una farmacia cuando `open24Hours=true`, cuando una franja de `weeklyHours` coincide con la hora actual en `America/Argentina/Buenos_Aires`, **o** cuando pertenece al grupo de guardia activo ahora (08:00–08:00). Soporta múltiples franjas por día y cierres después de medianoche. `openNow=false` aplica el complemento de ese criterio. No se permite combinar `openNow` con `dutyDate` histórico.
 
-La farmacia puede actualizar `weeklyHours` y `open24Hours` mediante el endpoint de edición existente (actualmente restringido a ADMIN). `weeklyHours` usa días ISO (lunes=1, domingo=7), `opensAt` y `closesAt` en formato HH:mm. Ejemplo:
+La farmacia puede actualizar sus horarios con `PUT /api/pharmacys/:pharmacyId/hours` (JWT; rol PHARMACIST únicamente para su farmacia, o ADMIN para cualquier farmacia). El endpoint requiere ambos campos `weeklyHours` y `open24Hours`. El endpoint general de edición de farmacias sigue restringido a ADMIN. `weeklyHours` usa días ISO (lunes=1, domingo=7), `opensAt` y `closesAt` en formato HH:mm. Ejemplo:
 
 ```json
 { "weeklyHours": [{ "dayOfWeek": 1, "opensAt": "09:00", "closesAt": "13:00" }, { "dayOfWeek": 1, "opensAt": "16:00", "closesAt": "20:00" }], "open24Hours": false }
 ```
 
-La migración `1790000000000-AddPharmacyWeeklyHours` incorpora los campos sin convertir automáticamente los horarios antiguos `openingDays`, `openingTime` y `closingTime`. **Es necesario migrar o cargar los horarios reales antes de confiar en openNow**. Todavía no se contemplan excepciones por feriados ni la hora exacta del relevo de guardia; por ahora el grupo del calendario se considera disponible durante todo el día local.
+La migración `1790000000000-AddPharmacyWeeklyHours` incorpora los campos sin convertir automáticamente los horarios antiguos `openingDays`, `openingTime` y `closingTime`. **Es necesario migrar o cargar los horarios reales antes de confiar en openNow**. Todavía no se contemplan excepciones por feriados. **El relevo de guardia ocurre a las 08:00 de Argentina**: la guardia del día D cubre desde D 08:00 hasta D+1 08:00 (exclusivo). Antes de las 08:00 se usa el grupo del día anterior, incluso en cambios de mes/año. `dutyDate` representa la fecha de inicio de la guardia (08:00) y no una consulta histórica por hora. La consulta mensual del calendario sigue mostrando el grupo asignado a cada fecha de inicio.
