@@ -50,9 +50,11 @@ class PharmacysRepository {
         .leftJoinAndSelect('pharmacy.shift', 'shift');
       if (filters.onDuty !== undefined) {
         // Use the pharmacy service timezone, not the server timezone.
-        const date = filters.dutyDate ?? new Intl.DateTimeFormat('en-CA', {
+        const parts = new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).format(new Date());
+        }).formatToParts(new Date());
+        const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        const date = filters.dutyDate ?? `${today.year}-${today.month}-${today.day}`;
         const [year, month, day] = date.split('-').map(Number);
         const calendar = await new ShiftCalendarService().getCalendar(year, month);
         const duty = calendar.days[day - 1];
