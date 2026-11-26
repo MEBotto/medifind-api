@@ -48,6 +48,9 @@ export const PharmacySearchSchema = z.object({
   if (data.hasShift === false && (data.idShift || data.shiftCode)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hasShift=false cannot be combined with shift filters', path: ['hasShift'] });
   }
+  if (data.openNow !== undefined && data.dutyDate) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'openNow cannot be combined with historical dutyDate', path: ['dutyDate'] });
+  }
   if (data.dutyDate && data.onDuty === undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'dutyDate requires onDuty', path: ['dutyDate'] });
   }
