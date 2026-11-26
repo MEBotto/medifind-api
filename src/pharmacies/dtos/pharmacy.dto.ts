@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const time = z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$/, 'Use HH:mm or HH:mm:ss');
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Use HH:mm or HH:mm:ss');
 const coordinate = (min: number, max: number) => z.number().finite().min(min).max(max);
 const phone = z.union([
-  z.string().regex(/^\\d{1,20}$/, 'Phone must contain 1 to 20 digits'),
+  z.string().regex(/^\d{1,20}$/, 'Phone must contain 1 to 20 digits'),
   z.number().int().nonnegative().safe().transform(value => String(value)),
 ]);
 
