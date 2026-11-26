@@ -10,8 +10,16 @@ export class InitialSchema1780000000000 implements MigrationInterface {
   name = 'InitialSchema1780000000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    const entityTables = [...new Set(queryRunner.connection.entityMetadatas
-      .map(metadata => metadata.tableName))];
+    // Frozen table list from the original 2026-11-26 schema snapshot.
+    // Do not use current entityMetadatas: later migrations introduce tables
+    // which must not be required before their own migration runs.
+    const entityTables = [
+      'permissions', 'role_permission', 'roles', 'medical_insurance',
+      'insurance_plan', 'laboratories', 'shift_rotation_rules',
+      'shift_rotation_rule_shifts', 'shifts', 'pharmacies', 'categories',
+      'products', 'order_items', 'orders', 'customers', 'people',
+      'favourite_pharmacies', 'users', 'audit_logs',
+    ];
 
     const existing: Array<{ table_name: string }> = await queryRunner.query(`
       SELECT table_name FROM information_schema.tables
