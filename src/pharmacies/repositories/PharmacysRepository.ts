@@ -1,6 +1,7 @@
 import { Repository, DeepPartial } from 'typeorm';
 import { Shift } from '@/shifts/models/Shift';
 import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
+import { activeDutyDate } from '@/shifts/utils/active-duty-date';
 import { Pharmacy } from '../models/Pharmacy';
 import AppDataSource from '@/data-source';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
@@ -48,20 +49,41 @@ class PharmacysRepository {
     try {
       const qb = this.ormRepository.createQueryBuilder('pharmacy')
         .leftJoinAndSelect('pharmacy.shift', 'shift');
-      if (filters.onDuty !== undefined) {
-        // Use the pharmacy service timezone, not the server timezone.
-        const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).formatToParts(new Date());
-        const today = Object.fromEntries(parts.map(part => [part.type, part.value]));
-        const date = filters.dutyDate ?? `${today.year}-${today.month}-${today.day}`;
+      if (filters.onDuty !== undefined || filters.openNow !== undefined) {
+        // Historical dutyDate denotes the guard beginning at 08:00 on that date.
+        // Real-time filters use the guard active now, which may be yesterday's group.
+        const date = filters.dutyDate ?? activeDutyDate(new Date());
         const [year, month, day] = date.split('-').map(Number);
-        const calendar = await new ShiftCalendarService().getCalendar(year, month);
-        const duty = calendar.days[day - 1];
-        if (!duty) throw new AppError(422, 'Fecha fuera del calendario');
-        qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', {
-          dutyShiftId: duty.shiftId,
-        });
+        let dutyShiftId: string | undefined;
+        try {
+          const calendar = await new ShiftCalendarService().getCalendar(year, month);
+          dutyShiftId = calendar.days[day - 1]?.shiftId;
+        } catch (error) {
+          if (!(error instanceof AppError && error.statusCode === 404 && filters.onDuty === undefined)) throw error;
+        }
+        if (filters.onDuty !== undefined) {
+          if (!dutyShiftId) throw new AppError(422, 'Fecha fuera del calendario');
+          qb.andWhere(filters.onDuty ? 'shift.id = :dutyShiftId' : '(shift.id IS NULL OR shift.id <> :dutyShiftId)', { dutyShiftId });
+        }
+        if (filters.openNow !== undefined) {
+          const localNow = "timezone('America/Argentina/Buenos_Aires', CURRENT_TIMESTAMP)";
+          const weekday = `EXTRACT(ISODOW FROM ${localNow})`;
+          const clock = `to_char(${localNow}, 'HH24:MI')`;
+          const hoursOpen = `(pharmacy."open24Hours" = true OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(pharmacy."weeklyHours") AS hours(entry)
+            WHERE (
+              ((hours.entry->>'dayOfWeek')::int = ${weekday}
+                AND hours.entry->>'opensAt' <= ${clock}
+                AND (hours.entry->>'closesAt' > ${clock} OR hours.entry->>'closesAt' < hours.entry->>'opensAt'))
+              OR ((hours.entry->>'dayOfWeek')::int = CASE WHEN ${weekday} = 1 THEN 7 ELSE ${weekday} - 1 END
+                AND hours.entry->>'closesAt' < hours.entry->>'opensAt'
+                AND hours.entry->>'closesAt' > ${clock})
+            )
+          ))`;
+          const dutyOpen = dutyShiftId ? 'shift.id = :openDutyShiftId' : 'FALSE';
+          qb.andWhere(filters.openNow ? `(${hoursOpen} OR ${dutyOpen})` : `(NOT ${hoursOpen} AND NOT (${dutyOpen}))`,
+            dutyShiftId ? { openDutyShiftId: dutyShiftId } : {});
+        }
       }
       if (filters.favoritesOnly === true) {
         qb.andWhere(`EXISTS (

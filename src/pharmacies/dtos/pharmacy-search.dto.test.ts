@@ -61,3 +61,12 @@ describe('duty search filters', () => {
     expect(PharmacySearchSchema.safeParse({ onDuty: 'true', hasShift: 'false' }).success).toBe(false);
   });
 });
+
+describe('opening status filters', () => {
+  it('accepts openNow with onDuty', () => {
+    expect(PharmacySearchSchema.safeParse({ openNow: 'true', onDuty: 'true' }).success).toBe(true);
+  });
+  it('rejects real-time openNow with historical dutyDate', () => {
+    expect(PharmacySearchSchema.safeParse({ openNow: 'true', onDuty: 'true', dutyDate: '2026-02-01' }).success).toBe(false);
+  });
+});

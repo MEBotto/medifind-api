@@ -7,7 +7,15 @@ const phone = z.union([
   z.number().int().nonnegative().safe().transform(value => String(value)),
 ]);
 
+const weeklyInterval = z.object({
+  dayOfWeek: z.number().int().min(1).max(7),
+  opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+}).strict().refine(value => value.opensAt !== value.closesAt, 'Use open24Hours for 24h opening');
+
 const pharmacyFields = z.object({
+  weeklyHours: z.array(weeklyInterval).max(28).optional(),
+  open24Hours: z.boolean().optional(),
   name: z.string().trim().min(1).max(200).optional(),
   adress: z.string().trim().min(1).max(500).optional(),
   lat: coordinate(-90, 90).optional().nullable(),
