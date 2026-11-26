@@ -5,10 +5,9 @@ import { Shift } from '../models/Shift';
 import { ShiftRotationRule } from '../models/ShiftRotationRule';
 import { ShiftRotationRuleShift } from '../models/ShiftRotationRuleShift';
 import { AnnualShiftConfig } from '../dtos/annual-shift-config.dto';
+import { rotationIndex } from '../utils/rotation';
 
 const ALL_CODES = 'ABCDEFGHIJKL'.split('');
-const utcDay = (year: number, month: number, day: number): number =>
-  Date.UTC(year, month - 1, day) / 86400000;
 
 export class ShiftCalendarService {
   async configureYear(config: AnnualShiftConfig): Promise<void> {
@@ -73,8 +72,7 @@ export class ShiftCalendarService {
     const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const entries = Array.from({ length: days }, (_, offset) => {
       const day = offset + 1;
-      const elapsed = utcDay(year, month, day) - utcDay(year, anchorMonth, rule.anchorDay);
-      const index = ((anchorIndex + elapsed) % ordered.length + ordered.length) % ordered.length;
+      const index = rotationIndex(year, month, day, anchorMonth, rule.anchorDay, anchorIndex, ordered.length);
       return { date: `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
         group: ordered[index].shift.code?.trim(), shiftId: ordered[index].shift.id };
     });
