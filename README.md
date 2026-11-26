@@ -14,6 +14,7 @@ Backend REST de MediFind para gestión de usuarios, farmacias, medicamentos, tur
 
 - [Búsqueda y filtros de farmacias](docs/pharmacy-search.md)
 - [Farmacias favoritas](docs/favorite-pharmacies.md)
+- [Horarios de atención y turnos (diseño y avance)](docs/pharmacy-hours.md)
 
 ### Ejemplo: búsqueda paginada
 
