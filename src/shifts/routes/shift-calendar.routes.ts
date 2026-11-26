@@ -14,7 +14,7 @@ const service = new ShiftCalendarService();
 router.get('/', authenticateJWT, async (req: AuthRequest, res: Response) => {
   const parsed = CalendarQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    sendError(res, 'Parámetros inválidos', 400, parsed.error.flatten().fieldErrors);
+    sendError(res, 'Parámetros inválidos', 400, parsed.error.errors.map(issue => ({ path: issue.path.join('.'), message: issue.message })));
     return;
   }
   try {
