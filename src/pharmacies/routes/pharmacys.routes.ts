@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { PharmacySearchSchema } from '../dtos/pharmacy-search.dto';
 import { activeDutyDate } from '@/shifts/utils/active-duty-date';
 import { ShiftCalendarService } from '@/shifts/services/ShiftCalendarService';
-import { distanceKm, localParts, nextRegularOpening, nextRegularClosing } from '../utils/availability';
-import { isOpenAt } from '../utils/opening-hours';
+import { distanceKm } from '../utils/availability';
+import { availabilityDetails } from '../utils/availability-details';
 import { AuthRequest, requirePharmacyAccess } from '@/middleware/auth.middleware';
 import AppDataSource from '@/data-source';
 import { Pharmacy } from '../models/Pharmacy';
@@ -62,22 +62,15 @@ router.get('/nearby', authenticateJWT, async (req: AuthRequest, res: Response) =
       lat, lng, radiusKm, orderBy: 'distance', page, limit,
     });
     const result = await service.getAllPharmacys(filters, req.user.id);
-    const local = localParts(now);
     const data = result.data.map(pharmacy => {
-      const onDuty = Boolean(activeShiftId && pharmacy.shift?.id === activeShiftId);
-      const regularlyOpen = pharmacy.open24Hours ||
-        isOpenAt(pharmacy.weeklyHours ?? [], local.dayOfWeek, local.time);
-      const openNow = onDuty || regularlyOpen;
       const distance = distanceKm(lat, lng, Number(pharmacy.lat), Number(pharmacy.lng));
       return {
         id: pharmacy.id, name: pharmacy.name, address: pharmacy.adress,
         lat: Number(pharmacy.lat), lng: Number(pharmacy.lng),
         distanceKm: Math.round(distance * 100) / 100,
-        onDuty, openNow, status: onDuty ? 'ON_DUTY' : openNow ? 'OPEN' : 'CLOSED',
+        ...availabilityDetails(pharmacy, now, activeShiftId),
         open24Hours: pharmacy.open24Hours,
         weeklyHours: pharmacy.weeklyHours,
-        nextOpeningAt: openNow ? null : nextRegularOpening(pharmacy, now),
-        nextClosingAt: onDuty || pharmacy.open24Hours || !regularlyOpen ? null : nextRegularClosing(pharmacy, now),
       };
     });
     sendSuccess(res, { ...result, data, checkedAt: now.toISOString(), timeZone: 'America/Argentina/Buenos_Aires' });
@@ -103,6 +96,48 @@ router.put('/:pharmacyId/hours', authenticateJWT, requirePharmacyAccess, validat
       sendError(res, 'Error interno del servidor');
     }
   });
+
+router.get('/:id/availability', authenticateJWT, async (req: AuthRequest, res: Response) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) {
+    sendError(res, 'ID de farmacia inválido', 400); return;
+  }
+  try {
+    const pharmacy = await repository.findById(req.params.id);
+    if (!pharmacy) { sendError(res, 'Farmacia no encontrada', 404); return; }
+    const now = new Date();
+    const date = activeDutyDate(now);
+    const [year, month, day] = date.split('-').map(Number);
+    let activeShiftId: string | undefined;
+    let dutyEndsAt: string | null = null;
+    let calendarAvailable = false;
+    try {
+      const calendar = await new ShiftCalendarService().getCalendar(year, month);
+      calendarAvailable = true;
+      activeShiftId = calendar.days[day - 1]?.shiftId;
+      if (activeShiftId && pharmacy.shift?.id === activeShiftId) {
+        // 08:00 Argentina = 11:00 UTC (Argentina currently has no DST).
+        const nextDay = new Date(`${date}T11:00:00.000Z`);
+        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+        dutyEndsAt = nextDay.toISOString();
+      }
+    } catch (error) {
+      if (!(error instanceof Error && 'statusCode' in error && error.statusCode === 404)) throw error;
+    }
+    sendSuccess(res, {
+      id: pharmacy.id, name: pharmacy.name, address: pharmacy.adress,
+      phone: pharmacy.phone, lat: pharmacy.lat, lng: pharmacy.lng,
+      shiftCode: pharmacy.shift?.code?.trim() ?? null,
+      open24Hours: pharmacy.open24Hours, weeklyHours: pharmacy.weeklyHours,
+      ...availabilityDetails(pharmacy, now, activeShiftId),
+      dutyEndsAt, calendarAvailable, checkedAt: now.toISOString(),
+      timeZone: 'America/Argentina/Buenos_Aires',
+    });
+  } catch (error) {
+    logger.error('Error consultando disponibilidad de farmacia:', error);
+    sendError(res, 'Error al consultar disponibilidad', 500);
+  }
+});
+
 router.get('/:id', authenticateJWT, controller.getById);
 router.put('/:id', authenticateJWT, requireRole('ADMIN'), validate(UpdatePharmacySchema), controller.update);
 router.delete('/:id', authenticateJWT, requireRole('ADMIN'), controller.delete);
