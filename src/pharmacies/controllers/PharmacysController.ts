@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '@/middleware/auth.middleware';
 import PharmacysService from '../services/PharmacysService';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
 import { PharmacySearchSchema } from '../dtos/pharmacy-search.dto';
@@ -39,14 +40,18 @@ class PharmacysController {
     }
   };
 
-  getAll = async (req: Request, res: Response): Promise<void> => {
+  getAll = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const parsed = PharmacySearchSchema.safeParse(req.query);
       if (!parsed.success) {
         sendError(res, 'Parámetros de búsqueda inválidos', 400, parsed.error.issues.map(issue => ({ path: issue.path.join('.'), message: issue.message })));
         return;
       }
-      const result = await this.pharmacysService.getAllPharmacys(parsed.data);
+      if (!req.user) {
+        sendError(res, 'Authentication required', 401);
+        return;
+      }
+      const result = await this.pharmacysService.getAllPharmacys(parsed.data, req.user.id);
       sendSuccess(res, result);
     } catch (error) {
       if (error instanceof AppError) {
