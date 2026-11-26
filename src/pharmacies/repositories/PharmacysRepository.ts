@@ -24,7 +24,7 @@ class PharmacysRepository {
     try {
       const { idShift, ...fields } = data;
       const entity = this.ormRepository.create(fields as DeepPartial<Pharmacy>);
-      if (idShift !== undefined) entity.shift = (await this.resolveShift(idShift)) ?? undefined;
+      if (idShift !== undefined) entity.shift = await this.resolveShift(idShift);
       return await this.ormRepository.save(entity);
     } catch (error) {
       if (error instanceof AppError) throw error;
