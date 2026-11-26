@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import PharmacysService from '../services/PharmacysService';
 import { CreatePharmacyDTO, UpdatePharmacyDTO } from '../dtos/pharmacy.dto';
+import { PharmacySearchSchema } from '../dtos/pharmacy-search.dto';
 import { AppError } from '@/middleware/error.middleware';
 import { logger } from '@/utils/logger';
 import { sendSuccess, sendCreated, sendError } from '@/utils/api.utils';
@@ -40,8 +41,13 @@ class PharmacysController {
 
   getAll = async (req: Request, res: Response): Promise<void> => {
     try {
-      const entities = await this.pharmacysService.getAllPharmacys();
-      sendSuccess(res, entities);
+      const parsed = PharmacySearchSchema.safeParse(req.query);
+      if (!parsed.success) {
+        sendError(res, 'Parámetros de búsqueda inválidos', 400, parsed.error.flatten());
+        return;
+      }
+      const result = await this.pharmacysService.getAllPharmacys(parsed.data);
+      sendSuccess(res, result);
     } catch (error) {
       if (error instanceof AppError) {
         sendError(res, error.message, error.statusCode);
