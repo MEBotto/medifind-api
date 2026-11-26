@@ -14,6 +14,7 @@ export const PharmacySearchSchema = z.object({
   hasShift: optionalBoolean.optional(),
   hasCoordinates: optionalBoolean.optional(),
   hasProducts: optionalBoolean.optional(),
+  favoritesOnly: optionalBoolean.optional(),
   productName: optionalText.optional(),
   idCategory: uuid.optional(),
   idLaboratory: uuid.optional(),
