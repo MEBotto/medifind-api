@@ -15,6 +15,8 @@ Endpoint autenticado: `GET /pharmacys` (se mantiene la ruta existente).
 | hasCoordinates | true/false | Con o sin geolocalización |
 | hasProducts | true/false | Con o sin productos **activos** |
 | favoritesOnly | true/false | Solo farmacias favoritas **activas del usuario autenticado** |
+| onDuty | true/false | Farmacias del grupo de guardia (o fuera de él) según calendario anual |
+| dutyDate | YYYY-MM-DD | Fecha local de Argentina para evaluar `onDuty`; por defecto hoy en `America/Argentina/Buenos_Aires` |
 | productName | string | Nombre de producto activo |
 | idCategory | UUID | Categoría de producto activo |
 | idLaboratory | UUID | Laboratorio de producto activo |
@@ -38,3 +40,13 @@ La respuesta conserva el sobre estándar `status: success` y devuelve `data: { d
 La distancia se calcula con fórmula esférica (km). No se implementa `openNow` porque el modelo todavía no dispone de zona horaria ni de un calendario de apertura estructurado: inferirlo a partir de `openingDays` sería incorrecto.
 
 Los resultados de CI y las pruebas con PostgreSQL deben validarse antes del merge.
+
+## Filtro de farmacias de turno
+
+```http
+GET /pharmacys?onDuty=true&dutyDate=2026-02-01&page=1&limit=20
+```
+
+El filtro se resuelve con la regla anual de mayor prioridad del calendario de turnos. `onDuty=true` devuelve farmacias asignadas al grupo de guardia; `onDuty=false` excluye ese grupo (incluye farmacias sin turno). Se combina con todos los demás filtros y la paginación existente.
+
+La fecha se interpreta en la zona `America/Argentina/Buenos_Aires`. Sin `dutyDate`, se utiliza el día actual de esa zona, no el del servidor. `dutyDate` requiere `onDuty`. Si no hay calendario configurado, la API devuelve 404; reglas empatadas en prioridad devuelven 409. El sistema calcula guardias **por día**, todavía no contempla la hora exacta de relevo. No confundir con `openNow`, que depende de horarios comerciales aún pendientes de modelar.
