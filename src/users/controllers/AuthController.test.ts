@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import AuthController from './AuthController';
 import { RefreshSessionService } from '../services/RefreshSessionService';
 import UsersService from '../services/UsersService';
+import { AppError } from '@/middleware/error.middleware';
 
 jest.mock('@/utils/jwt-secret', () => ({ getJwtSecret: () => 'unit-test-secret' }));
 jest.mock('@/utils/logger', () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
@@ -48,7 +49,6 @@ describe('AuthController', () => {
   });
 
   it('rejects invalid login credentials without returning a token', async () => {
-    const { AppError } = require('@/middleware/error.middleware');
     const service = {
       authenticateUser: jest.fn().mockRejectedValue(new AppError(401, 'Invalid email or password')),
     } as unknown as UsersService;

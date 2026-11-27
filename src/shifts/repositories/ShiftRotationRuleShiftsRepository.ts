@@ -13,7 +13,7 @@ class ShiftRotationRuleShiftsRepository {
 
   async findById(id: string): Promise<ShiftRotationRuleShift | null> {
     try {
-      return await this.ormRepository.findOne({ where: { id } as any });
+      return await this.ormRepository.findOneBy({ id });
     } catch (error) {
       logger.error(`Error al buscar ShiftRotationRuleShift ${id}:`, error);
       throw new AppError(500, 'Error al buscar la entidad');

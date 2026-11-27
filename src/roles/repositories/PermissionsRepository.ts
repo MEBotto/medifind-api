@@ -24,7 +24,7 @@ class PermissionsRepository {
 
   async findById(id: string): Promise<Permission | null> {
     try {
-      return await this.ormRepository.findOne({ where: { id } as any });
+      return await this.ormRepository.findOneBy({ id });
     } catch (error) {
       logger.error(`Error al buscar Permission ${id}:`, error);
       throw new AppError(500, 'Error al buscar la entidad');

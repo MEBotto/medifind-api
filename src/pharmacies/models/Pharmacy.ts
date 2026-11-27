@@ -23,7 +23,7 @@ export class Pharmacy {
   @Column({ type: 'bigint', nullable: true })
   phone: string;
 
-  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  @Column({ type: 'jsonb', default: [] })
   weeklyHours: { dayOfWeek: number; opensAt: string; closesAt: string }[];
 
   @Column({ type: 'boolean', default: false })
@@ -38,13 +38,13 @@ export class Pharmacy {
   @Column({ type: 'time', nullable: true })
   closingTime: string;
 
-  @ManyToOne(() => Shift, shift => shift.pharmacies, { nullable: true })
+  @ManyToOne(() => Shift, (shift) => shift.pharmacies, { nullable: true })
   @JoinColumn({ name: 'idShift' })
   shift: Shift | null;
 
-  @OneToMany(() => Product, product => product.pharmacy)
+  @OneToMany(() => Product, (product) => product.pharmacy)
   products: Product[];
 
-  @OneToMany(() => User, user => user.pharmacy)
+  @OneToMany(() => User, (user) => user.pharmacy)
   users: User[];
 }

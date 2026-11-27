@@ -34,14 +34,44 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [RefreshSession, Notification, AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, CatalogProduct, PharmacyProduct, CatalogRequest, Category, Laboratory, FavouritePharmacy],
+  entities: [
+    RefreshSession,
+    Notification,
+    AuditLog,
+    User,
+    Role,
+    Permission,
+    RolePermission,
+    Shift,
+    ShiftRotationRule,
+    ShiftRotationRuleShift,
+    Pharmacy,
+    Order,
+    OrderItem,
+    Customer,
+    Person,
+    InsurancePlan,
+    MedicalInsurance,
+    Product,
+    CatalogProduct,
+    PharmacyProduct,
+    CatalogRequest,
+    Category,
+    Laboratory,
+    FavouritePharmacy,
+  ],
   // Match timestamp-prefixed migration files only; never load Jest test modules.
   // Use compiled JavaScript migrations when running from dist in production.
-  migrations: [process.env.NODE_ENV === 'production'
-    ? 'dist/migrations/[0-9]*.js'
-    : 'src/migrations/[0-9]*.ts'],
+  migrations: [
+    process.env.NODE_ENV === 'production'
+      ? 'dist/migrations/[0-9]*.js'
+      : 'src/migrations/[0-9]*.ts',
+  ],
   // Never auto-modify a real database schema. Tests use an isolated disposable DB.
-  synchronize: process.env.NODE_ENV === 'test',
+  synchronize:
+    process.env.NODE_ENV === 'test' &&
+    process.env.DB_INTEGRATION_ISOLATED === 'true' &&
+    process.env.DB_TEST_SYNCHRONIZE === 'true',
   logging: false,
 });
 

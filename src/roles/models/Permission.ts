@@ -1,12 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Index } from 'typeorm';
 import { RolePermission } from './RolePermission';
 
 @Entity('permissions')
+@Index('UQ_permissions_code', ['code'], { unique: true })
 export class Permission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true, length: 100 })
+  @Column({ length: 100 })
   code: string;
 
   @Column({ type: 'varchar', nullable: true, length: 150 })
@@ -15,6 +16,6 @@ export class Permission {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @OneToMany(() => RolePermission, rp => rp.permission)
+  @OneToMany(() => RolePermission, (rp) => rp.permission)
   rolePermissions: RolePermission[];
 }

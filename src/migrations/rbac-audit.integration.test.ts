@@ -8,7 +8,13 @@ const describeDb = process.env.RUN_DB_INTEGRATION === '1' ? describe : describe.
 
 describeDb('RBAC migration against PostgreSQL', () => {
   beforeAll(async () => {
-    if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+    if (process.env.NODE_ENV !== 'test' || process.env.DB_INTEGRATION_ISOLATED !== 'true') {
+      throw new Error('Requires isolated test database');
+    }
+
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
   });
 
   afterAll(async () => {
@@ -23,7 +29,7 @@ describeDb('RBAC migration against PostgreSQL', () => {
     try {
       await new RbacAudit1790000000000().up(runner);
       const after = await runner.manager.getRepository(Role).find();
-      expect(after.map(r => r.id).sort()).toEqual(before.map(r => r.id).sort());
+      expect(after.map((r) => r.id).sort()).toEqual(before.map((r) => r.id).sort());
       expect(await runner.hasTable('audit_logs')).toBe(true);
       await runner.rollbackTransaction();
     } catch (error) {
@@ -35,7 +41,11 @@ describeDb('RBAC migration against PostgreSQL', () => {
   });
 
   it('audit log entity maps to the database', async () => {
-    const columns = AppDataSource.getMetadata(AuditLog).columns.map(column => column.databaseName);
-    expect(columns).toEqual(expect.arrayContaining(['userId', 'pharmacyId', 'createdAt', 'ipAddress']));
+    const columns = AppDataSource.getMetadata(AuditLog).columns.map(
+      (column) => column.databaseName,
+    );
+    expect(columns).toEqual(
+      expect.arrayContaining(['userId', 'pharmacyId', 'createdAt', 'ipAddress']),
+    );
   });
 });

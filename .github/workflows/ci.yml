@@ -11,19 +11,25 @@ jobs:
   build-and-test:
     name: Build and unit tests
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: npm
+
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run build
+      - run: npm run lint
       - run: npm test -- --runInBand
 
   authentication-api:
-    name: Authentication API (Newman)
+    name: Authentication API (Supertest)
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -38,63 +44,59 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     env:
       NODE_ENV: test
-      PORT: '3001'
+      DB_INTEGRATION_ISOLATED: 'true'
+      DB_TEST_SYNCHRONIZE: 'false'
       DB_HOST: localhost
       DB_PORT: '5432'
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_DATABASE: medifind_test
       JWT_SECRET: ci-only-test-secret-not-for-production-2026
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: npm
+
       - run: npm ci
-      - name: Verify Postman collection is committed
-        run: test -f tests/postman/MediFind.postman_collection.json
+
+      - name: Apply database migrations
+        env:
+          NODE_ENV: development
+        run: >
+          npx ts-node -r tsconfig-paths/register
+          ./node_modules/typeorm/cli.js
+          migration:run -d src/data-source.ts
+          --transaction all
+
       - name: Initialize roles in isolated test database
         run: npm run seed:roles
-      - name: Start API
-        run: |
-          npm run dev > /tmp/medifind-api.log 2>&1 &
-          echo $! > /tmp/medifind-api.pid
-      - name: Wait for API
-        run: |
-          for i in $(seq 1 45); do
-            if curl --silent --output /dev/null http://localhost:3001/api/auth/login; then
-              echo "API is ready"
-              exit 0
-            fi
-            if ! kill -0 "$(cat /tmp/medifind-api.pid)" 2>/dev/null; then
-              cat /tmp/medifind-api.log
-              exit 1
-            fi
-            sleep 2
-          done
-          cat /tmp/medifind-api.log
-          exit 1
-      - name: Run Authentication Postman tests
-        run: |
-          npx --yes newman@6.2.3 run tests/postman/MediFind.postman_collection.json \
-            --folder Authentication \
-            --env-var "baseUrl=http://localhost:3001/api" \
-            --env-var "token=" \
-            --env-var "userId="
+
+      - name: Run Authentication API tests
+        env:
+          RUN_DB_INTEGRATION: 'true'
+        run: >
+          npm test -- --runInBand --runTestsByPath
+          src/users/auth.integration.test.ts
+
       - name: Run PostgreSQL integration tests
         env:
           RUN_DB_INTEGRATION: '1'
-        run: npm test -- --runInBand src/products/products.integration.test.ts src/migrations/rbac-audit.integration.test.ts
-      - name: Show API logs on failure
-        if: failure()
-        run: cat /tmp/medifind-api.log || true
+        run: >
+          npm test -- --runInBand --runTestsByPath
+          src/products/products.integration.test.ts
+          src/migrations/rbac-audit.integration.test.ts
 
   fresh-database:
     name: Fresh database setup
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -109,29 +111,37 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     env:
       NODE_ENV: development
+      DB_TEST_SYNCHRONIZE: 'false'
       DB_HOST: localhost
       DB_PORT: '5432'
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_DATABASE: medifind_fresh
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: npm
+
       - run: npm ci
       - run: npm run build
+
       - name: Initialize empty database
         run: |
           export BOOTSTRAP_ADMIN_EMAIL=admin@example.test
           export BOOTSTRAP_ADMIN_USERNAME=initial_admin
           export BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 20)"
           npm run db:setup:prod
+
       - name: Verify setup can be rerun without bootstrap credentials
         run: npm run db:setup:prod
+
       - name: Verify reference data and admin are not duplicated
         run: |
           export PGPASSWORD=postgres
@@ -141,9 +151,23 @@ jobs:
           test "$(query "SELECT count(*) FROM users WHERE username = 'initial_admin'")" = 1
           test "$(query "SELECT count(*) FROM role_permission")" = 5
 
+      - name: Verify database schema matches TypeORM entities
+        run: |
+          output=$(npx ts-node -r tsconfig-paths/register \
+            ./node_modules/typeorm/cli.js \
+            schema:log -d src/data-source.ts)
+
+          printf '%s\n' "$output"
+
+          if ! grep -Fq "Your schema is up to date" <<< "$output"; then
+            echo "::error::Database schema does not match TypeORM entities"
+            exit 1
+          fi
+
   pharmacy-integration:
     name: Pharmacy PostgreSQL + HTTP integration
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -158,9 +182,11 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     env:
       NODE_ENV: test
       DB_INTEGRATION_ISOLATED: 'true'
+      DB_TEST_SYNCHRONIZE: 'false'
       RUN_DB_INTEGRATION: 'true'
       DB_HOST: localhost
       DB_PORT: '5432'
@@ -168,13 +194,29 @@ jobs:
       DB_PASSWORD: postgres
       DB_DATABASE: medifind_pharmacy_ci
       JWT_SECRET: ci-only-test-secret-not-for-production-2026
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: npm
+
       - run: npm ci
       - run: npm run build
-      - name: Test pharmacy calendar, HTTP permissions and openNow on PostgreSQL
+
+      - name: Apply database migrations
+        env:
+          NODE_ENV: development
+        run: >
+          npx ts-node -r tsconfig-paths/register
+          ./node_modules/typeorm/cli.js
+          migration:run -d src/data-source.ts
+          --transaction all
+
+      - name: Initialize roles in isolated test database
+        run: npm run seed:roles
+
+      - name: Run PostgreSQL and HTTP integration tests
         run: npm run test:integration

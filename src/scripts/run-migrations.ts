@@ -1,6 +1,5 @@
 import 'module-alias/register';
 import 'dotenv/config';
-import { DataSource } from 'typeorm';
 import { logger } from '../utils/logger';
 import AppDataSource from '../data-source';
 

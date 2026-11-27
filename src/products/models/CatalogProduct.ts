@@ -1,10 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  Unique,
+} from 'typeorm';
 import { Laboratory } from './Laboratory';
 import { Category } from './Category';
 import { PharmacyProduct } from './PharmacyProduct';
 
 @Entity('catalog_products')
-@Index('IDX_catalog_products_barcode', ['barcode'], { unique: true })
+@Unique('UQ_catalog_products_barcode', ['barcode'])
 export class CatalogProduct {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -27,14 +35,26 @@ export class CatalogProduct {
   @Column({ type: 'varchar', length: 20, nullable: true })
   unit: string | null;
 
-  @ManyToOne(() => Laboratory, { nullable: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'laboratoryId' })
+  @ManyToOne(() => Laboratory, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({
+    name: 'laboratoryId',
+    foreignKeyConstraintName: 'FK_catalog_products_laboratory',
+  })
   laboratory: Laboratory | null;
 
-  @ManyToOne(() => Category, { nullable: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'categoryId' })
+  @ManyToOne(() => Category, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({
+    name: 'categoryId',
+    foreignKeyConstraintName: 'FK_catalog_products_category',
+  })
   category: Category | null;
 
-  @OneToMany(() => PharmacyProduct, listing => listing.product)
+  @OneToMany(() => PharmacyProduct, (listing) => listing.product)
   listings: PharmacyProduct[];
 }
