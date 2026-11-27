@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import 'dotenv/config';
 import { logger } from '@/utils/logger';
 
+import { RefreshSession } from './users/models/RefreshSession';
 import { User } from './users/models/User';
 import { Notification } from './notifications/models/Notification';
 import { AuditLog } from './audit/models/AuditLog';
@@ -33,7 +34,7 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [Notification, AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, CatalogProduct, PharmacyProduct, CatalogRequest, Category, Laboratory, FavouritePharmacy],
+  entities: [RefreshSession, Notification, AuditLog, User, Role, Permission, RolePermission, Shift, ShiftRotationRule, ShiftRotationRuleShift, Pharmacy, Order, OrderItem, Customer, Person, InsurancePlan, MedicalInsurance, Product, CatalogProduct, PharmacyProduct, CatalogRequest, Category, Laboratory, FavouritePharmacy],
   // Match timestamp-prefixed migration files only; never load Jest test modules.
   // Use compiled JavaScript migrations when running from dist in production.
   migrations: [process.env.NODE_ENV === 'production'
