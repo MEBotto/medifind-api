@@ -14,4 +14,7 @@ const authController = new AuthController(usersService);
 router.post('/register', validate(CreateUserSchema), authController.register);
 router.post('/login', validate(LoginSchema), authController.login);
 
+router.post('/refresh', authController.refresh);
+router.post('/logout', authController.logout);
+
 export default router;
