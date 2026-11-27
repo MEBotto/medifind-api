@@ -6,6 +6,7 @@ import { logger } from '@/utils/logger';
 import bcrypt from 'bcrypt';
 import AppDataSource from '@/data-source';
 import { Role } from '@/roles/models/Role';
+import { RefreshSession } from '../models/RefreshSession';
 import { AuditLog } from '@/audit/models/AuditLog';
 
 class UsersService {
@@ -71,7 +72,10 @@ class UsersService {
       const before = { username: user.username, email: user.email };
       const { password, ...safeFields } = userData;
       Object.assign(user, safeFields);
-      if (password) user.password = await bcrypt.hash(password, 12);
+      if (password) {
+        user.password = await bcrypt.hash(password, 12);
+        await manager.getRepository(RefreshSession).update({ userId: id }, { revokedAt: new Date() });
+      }
       const updated = await repository.save(user);
       const logs = manager.getRepository(AuditLog);
       await logs.save(logs.create({
